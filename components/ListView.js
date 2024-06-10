@@ -23,11 +23,11 @@ const Legend = () => (
 
 function ListView({ devices }) {
   const getListItemClass = (level, battery) => {
-    if (level >= 80 && battery <= 25) {
+    if (level >= 80 && battery <= 20) {
       return 'bg-purple-400'; // Both full bin and low battery
     } else if (level >= 80) {
       return 'bg-red-300'; // Full bin
-    } else if (battery <= 25) {
+    } else if (battery <= 20) {
       return 'bg-yellow-300'; // Low battery
     } else {
       return 'bg-green-300'; // No issues

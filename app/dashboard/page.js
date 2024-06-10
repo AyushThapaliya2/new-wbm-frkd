@@ -71,8 +71,8 @@ export default function Home() {
         const convertedDevices = helperToConvertLevelToPercentage(devices);
 
         const totalDevices = convertedDevices.length;
-        const fullBins = convertedDevices.filter(device => device.level > 80).length;
-        const lowBatteryBins = convertedDevices.filter(device => device.battery < 20).length;
+        const fullBins = convertedDevices.filter(device => device.level >= 80).length;
+        const lowBatteryBins = convertedDevices.filter(device => device.battery <= 20).length;
 
         const { data: feedback, error: feedbackError } = await supabase
           .from('feedbacks')
