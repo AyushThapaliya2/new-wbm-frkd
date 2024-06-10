@@ -19,6 +19,9 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
         <li className="p-4 border-b border-gray-600">
           <Link href="/routes" onClick={toggleSidebar}>Routes</Link>
         </li>
+        <li className="p-4 border-b border-gray-600">
+          <Link href="/historical-data" onClick={toggleSidebar}>Data</Link>
+        </li>
       </ul>
     </div>
   );
