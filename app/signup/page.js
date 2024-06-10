@@ -11,8 +11,7 @@ export default function Signup() {
   const [password, setPassword] = useState('');
   const [fname, setFname] = useState('');
   const [lname, setLname] = useState('');
-  const [role, setRole] = useState('');
-  const [startDate, setStartDate] = useState('');
+  const [role, setRole] = useState('employee'); // Default to 'employee'
   const router = useRouter();
 
   const handleSignup = async (e) => {
@@ -36,7 +35,7 @@ export default function Signup() {
     }
 
     const { error: insertError } = await supabase.from('users').insert([
-      { email, password: hashedPassword, fname, lname, role, start_date: startDate }
+      { email, password: hashedPassword, fname, lname, role, start_date: new Date().toISOString() }
     ]);
 
     if (insertError) {
@@ -97,25 +96,30 @@ export default function Signup() {
         </div>
         <div className="mb-4">
           <label htmlFor="role" className="block text-gray-700">Role</label>
-          <input
-            type="text"
-            id="role"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded mt-1"
-            required
-          />
-        </div>
-        <div className="mb-4">
-          <label htmlFor="startDate" className="block text-gray-700">Start Date</label>
-          <input
-            type="date"
-            id="startDate"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded mt-1"
-            required
-          />
+          <div className="flex items-center space-x-4">
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="role"
+                value="employee"
+                checked={role === 'employee'}
+                onChange={(e) => setRole(e.target.value)}
+                className="form-radio text-blue-600"
+              />
+              <span className="ml-2 text-gray-700">Employee</span>
+            </label>
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="role"
+                value="admin"
+                checked={role === 'admin'}
+                onChange={(e) => setRole(e.target.value)}
+                className="form-radio text-blue-600"
+              />
+              <span className="ml-2 text-gray-700">Admin</span>
+            </label>
+          </div>
         </div>
         <button type="submit" className="w-full bg-blue-500 text-white p-2 rounded">Sign Up</button>
         <div className="mt-4 text-center">

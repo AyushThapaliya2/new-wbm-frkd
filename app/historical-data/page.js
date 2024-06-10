@@ -102,7 +102,8 @@ function Data() {
         // Calculate start and end dates based on the fetched data
         const dates = data.map(item => new Date(item.saved_time));
         const minDate = dates.length ? new Date(Math.min(...dates)) : new Date();
-        const maxDate = dates.length ? new Date(Math.max(...dates)) : new Date();
+        let maxDate = dates.length ? new Date(Math.max(...dates)) : new Date();
+        maxDate.setDate(maxDate.getDate() + 1);
 
         setStartDate(minDate.toISOString().split('T')[0]);
         setEndDate(maxDate.toISOString().split('T')[0]);
