@@ -12,7 +12,6 @@ import {
   Legend,
   TimeScale
 } from 'chart.js';
-import zoomPlugin from 'chartjs-plugin-zoom';
 
 import { supabase } from '@/lib/supabaseClient';
 import 'chartjs-adapter-date-fns';
@@ -28,8 +27,7 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  TimeScale,
-  zoomPlugin
+  TimeScale
 );
 
 function Data() {
@@ -41,7 +39,7 @@ function Data() {
     "rgba(153, 102, 255, 0.5)", // purple
     "rgba(255, 159, 64, 0.5)"   // orange
   ];
-  
+
   const chartOptions = {
     scales: {
       y: {
@@ -70,24 +68,7 @@ function Data() {
     hover: {
       animationDuration: 5
     },
-    responsiveAnimationDuration: 0,
-    plugins: {
-      zoom: {
-        zoom: {
-          wheel: {
-            enabled: true
-          },
-          pinch: {
-            enabled: true
-          },
-          mode: 'xy',
-        },
-        pan: {
-          enabled: true,
-          mode: 'xy',
-        }
-      }
-    }
+    responsiveAnimationDuration: 0
   };
   
   const [mockData, setHistorical] = useState([]);
