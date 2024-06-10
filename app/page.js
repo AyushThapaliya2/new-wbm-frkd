@@ -4,8 +4,6 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import Navbar from '@/components/Navbar';
-import Sidebar from '@/components/Sidebar';
 
 export default function Dashboard() {
   const { session } = useAuth();
@@ -32,9 +30,8 @@ export default function Dashboard() {
 
   return (
     <div className="flex h-screen">
-      <Sidebar />
       <div className="flex-1">
-        <Navbar />
+
         <main className="p-4">
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <div>

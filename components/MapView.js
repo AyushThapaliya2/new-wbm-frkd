@@ -10,15 +10,9 @@ const mapOptions = {
   scrollwheel: true,
 };
 const libraries = ['places'];
-
-const mapContainerStyle = {
-  width: '100%',
-  height: '80vh',
-};
-
 const zoomDistance = 16;
 
-const MapView = ({ devices, directions }) => {
+const MapView = ({ devices, directions, mapWidth = '100%', mapHeight = '80vh' }) => {
   const [selectedMarker, setSelectedMarker] = useState(null);
 
   const { isLoaded, loadError } = useLoadScript({
@@ -110,7 +104,7 @@ const MapView = ({ devices, directions }) => {
         options={mapOptions}
         zoom={zoomDistance}
         center={mapCenter}
-        mapContainerStyle={mapContainerStyle}
+        mapContainerStyle={{ width: mapWidth, height: mapHeight }}
         key={directions ? 'with-directions' : 'no-directions'}
       >
         {directions && <DirectionsRenderer directions={directions} />}

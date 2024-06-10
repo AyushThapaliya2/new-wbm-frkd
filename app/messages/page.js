@@ -46,9 +46,7 @@ export default function MessagesPage() {
 
   return (
     <div className="flex h-screen">
-      <Sidebar />
       <div className="flex-1 transition-all duration-300">
-        <Navbar />
         <main className="p-4">
           <h1 className="text-2xl font-bold">Messages</h1>
           <div>

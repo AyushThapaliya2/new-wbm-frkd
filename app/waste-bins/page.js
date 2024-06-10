@@ -6,6 +6,8 @@ import Sidebar from '@/components/Sidebar';
 import MapView from '@/components/MapView';
 import ListView from '@/components/ListView';
 import { supabase } from '@/lib/supabaseClient';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 
 const Legend = () => (
   <div className="flex flex-col space-y-2 p-4">
@@ -29,9 +31,19 @@ const Legend = () => (
 );
 
 export default function BinView() {
+  const { session } = useAuth();
+  const router = useRouter();
   const [devices, setDevices] = useState([]);
   const [view, setView] = useState('map');
   console.log(devices);
+
+  useEffect(() => {
+    if(!session){
+      router.push('/login');
+    }
+  
+
+  }, [])
 
   useEffect(() => {
     fetchDevices();
@@ -86,9 +98,7 @@ export default function BinView() {
 
   return (
     <div className="flex h-screen">
-      <Sidebar />
       <div className="flex-1 transition-all duration-300">
-        <Navbar />
         <main className="p-4">
           <div className="flex justify-center mb-4 space-x-4">
             <button
