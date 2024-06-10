@@ -12,7 +12,7 @@ const mapOptions = {
 const libraries = ['places'];
 const zoomDistance = 16;
 
-const MapView = ({ devices, directions, mapWidth = '100%', mapHeight = '80vh', travelMode, fetchDirections }) => {
+const MapView = ({ devices, directions = null, mapWidth = '100%', mapHeight = '80vh', travelMode = null, fetchDirections = null }) => {
   const [selectedMarker, setSelectedMarker] = useState(null);
 
   const { isLoaded, loadError } = useLoadScript({
@@ -21,7 +21,7 @@ const MapView = ({ devices, directions, mapWidth = '100%', mapHeight = '80vh', t
   });
 
   useEffect(() => {
-    if (isLoaded && devices.length > 0) {
+    if (fetchDirections && isLoaded && devices.length > 0) {
       fetchDirections(devices, travelMode);
     }
   }, [isLoaded, devices, travelMode]);
