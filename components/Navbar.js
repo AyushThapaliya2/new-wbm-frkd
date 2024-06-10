@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { FaUser } from 'react-icons/fa';
@@ -18,10 +18,17 @@ export default function Navbar({ toggleSidebar }) {
     setDropdownOpen(!dropdownOpen);
   };
 
+  useEffect(() => {
+    // Close the dropdown when the session changes
+    setDropdownOpen(false);
+  }, [session]);
+
   return (
     <nav className="bg-gray-800 text-white flex justify-between items-center p-3 fixed top-0 left-0 right-0 z-50">
       <div className="flex items-center">
-        <button className="text-2xl" onClick={toggleSidebar}>☰</button>
+        {session && (
+          <button className="text-2xl" onClick={toggleSidebar}>☰</button>
+        )}
         <div className="text-2xl font-bold ml-4">
           <Link href="/">WBM</Link>
         </div>
