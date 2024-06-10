@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GoogleMap, Marker, InfoWindow, DirectionsRenderer, useLoadScript } from '@react-google-maps/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBatteryQuarter, faTrash } from '@fortawesome/free-solid-svg-icons';
@@ -12,13 +12,19 @@ const mapOptions = {
 const libraries = ['places'];
 const zoomDistance = 16;
 
-const MapView = ({ devices, directions, mapWidth = '100%', mapHeight = '80vh' }) => {
+const MapView = ({ devices, directions, mapWidth = '100%', mapHeight = '80vh', travelMode, fetchDirections }) => {
   const [selectedMarker, setSelectedMarker] = useState(null);
 
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAP_API_KEY,
     libraries: libraries,
   });
+
+  useEffect(() => {
+    if (isLoaded && devices.length > 0) {
+      fetchDirections(devices, travelMode);
+    }
+  }, [isLoaded, devices, travelMode]);
 
   if (loadError) {
     return <div>Error loading maps</div>;

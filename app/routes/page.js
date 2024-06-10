@@ -201,66 +201,13 @@ const Routes = () => {
         );
       });
       setDevicesToWorkOn(filtered);
-      fetchDirections(filtered);
+      if(filtered.length === 0){
+        setDirections(null);
+        setEstimatedTime("");
+      }
     };
     filterDevices();
-  }, [filters, devices]);
-
-  const fetchDirections = (filteredDevices) => {
-    if (!filters.changeBattery && !filters.emptyBin) {
-      setDirections(null);
-      setEstimatedTime("");
-      return;
-    }
-
-    if (filteredDevices.length < 2) {
-      setDirections(null);
-      setEstimatedTime("");
-      return;
-    }
-
-    const waypoints = filteredDevices.slice(1, -1).map((bin) => ({
-      location: { lat: bin.lat, lng: bin.lng },
-      stopover: true,
-    }));
-
-    const directionsService = new window.google.maps.DirectionsService();
-    directionsService.route(
-      {
-        origin: { lat: filteredDevices[0].lat, lng: filteredDevices[0].lng },
-        destination: {
-          lat: filteredDevices[filteredDevices.length - 1].lat,
-          lng: filteredDevices[filteredDevices.length - 1].lng,
-        },
-        waypoints: waypoints,
-        travelMode: travelMode,
-      },
-      (result, status) => {
-        if (status === window.google.maps.DirectionsStatus.OK) {
-          setDirections(result);
-          const duration = result.routes[0].legs.reduce(
-            (total, leg) => total + leg.duration.value,
-            0
-          );
-          setEstimatedTime(`${Math.floor(duration / 60)} minutes`);
-        } else {
-          console.error(`Directions request failed due to ${status}`);
-        }
-      }
-    );
-  };
-
-  useEffect(() => {
-    if (
-      typeof window.google === "undefined" ||
-      typeof window.google.maps === "undefined"
-    ) {
-      console.error("Google Maps API is not loaded yet.");
-      return;
-    } else {
-      fetchDirections(devicesToWorkOn);
-    }
-  }, [devicesToWorkOn, travelMode]);
+  }, [filters, devices, predictedDevices]);
 
   const decideWorkToDo = (bin) => {
     let emptyBin = false;
@@ -393,6 +340,50 @@ const Routes = () => {
     }
   };
 
+  const fetchDirections = async (devicesToWorkOn, travelMode) => {
+    if (devicesToWorkOn.length < 2) {
+      setDirections(null);
+      setEstimatedTime("");
+      return;
+    }
+
+    const waypoints = devicesToWorkOn.slice(1, -1).map((bin) => ({
+      location: { lat: bin.lat, lng: bin.lng },
+      stopover: true,
+    }));
+
+    const directionsService = new window.google.maps.DirectionsService();
+    directionsService.route(
+      {
+        origin: { lat: devicesToWorkOn[0].lat, lng: devicesToWorkOn[0].lng },
+        destination: {
+          lat: devicesToWorkOn[devicesToWorkOn.length - 1].lat,
+          lng: devicesToWorkOn[devicesToWorkOn.length - 1].lng,
+        },
+        waypoints: waypoints,
+        travelMode: travelMode,
+      },
+      (result, status) => {
+        if (status === window.google.maps.DirectionsStatus.OK) {
+          setDirections(result);
+          const duration = result.routes[0].legs.reduce(
+            (total, leg) => total + leg.duration.value,
+            0
+          );
+          setEstimatedTime(`${Math.floor(duration / 60)} minutes`);
+        } else {
+          console.error(`Directions request failed due to ${status}`);
+        }
+      }
+    );
+  };
+
+  useEffect(() => {
+    if (devicesToWorkOn.length > 0) {
+      fetchDirections(devicesToWorkOn, travelMode);
+    }
+  }, [devicesToWorkOn, travelMode]);
+
   return (
     <div className="flex h-screen">
       <div className="flex-1 flex flex-col">
@@ -444,6 +435,8 @@ const Routes = () => {
                   directions={directions}
                   mapWidth="100%"
                   mapHeight="510px"
+                  travelMode={travelMode}
+                  fetchDirections={fetchDirections}
                 />
               </div>
               <div className="lg:w-1/3 p-4 bg-white rounded shadow-md flex flex-col space-y-4">

@@ -60,7 +60,7 @@ export default function Navbar({ toggleSidebar }) {
             <button className="text-2xl mr-2 relative" onClick={toggleDropdown}>
               <FaUser />
             </button>
-            <span>Welcome, {userDetails.fname}</span>
+            <span>{userDetails.fname}</span>
 
             {dropdownOpen && (
               <div className="absolute right-0 top-full mt-2 w-48 bg-white text-black rounded-md shadow-lg py-2">
