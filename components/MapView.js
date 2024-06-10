@@ -63,7 +63,7 @@ const MapView = ({ devices, directions, mapWidth = '100%', mapHeight = '80vh' })
         <FontAwesomeIcon
           key="battery"
           icon={faBatteryQuarter}
-          className="text-yellow-500 mr-2"
+          className="text-orange-400 mr-2"
         />
       ); // Low battery icon
     }
@@ -87,11 +87,11 @@ const MapView = ({ devices, directions, mapWidth = '100%', mapHeight = '80vh' })
           <span>Full bin</span>
         </div>
         <div className="flex items-center">
-          <span className="w-4 h-4 bg-yellow-300 inline-block mr-2"></span>
+          <span className="w-4 h-4 bg-orange-300 inline-block mr-2"></span>
           <span>Low battery</span>
         </div>
         <div className="flex items-center">
-          <span className="w-4 h-4 bg-green-300 inline-block mr-2"></span>
+          <span className="w-4 h-4 bg-green-400 inline-block mr-2"></span>
           <span>No issues</span>
         </div>
       </div>

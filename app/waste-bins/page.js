@@ -20,7 +20,7 @@ const Legend = () => (
       <span>Full bin</span>
     </div>
     <div className="flex items-center">
-      <span className="w-4 h-4 bg-yellow-300 inline-block mr-2"></span>
+      <span className="w-4 h-4 bg-orange-300 inline-block mr-2"></span>
       <span>Low battery</span>
     </div>
     <div className="flex items-center">

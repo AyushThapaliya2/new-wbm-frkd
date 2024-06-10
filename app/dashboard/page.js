@@ -36,7 +36,8 @@ export default function Home() {
   const [recentFeedback, setRecentFeedback] = useState([]);
   const [recentRoutes, setRecentRoutes] = useState([]);
   const [chartData, setChartData] = useState({ labels: [], datasets: [] });
-  console.log(summary);
+  const secretToken = process.env.SECRET_TOKEN;
+    console.log(process.env.NEXT_PUBLIC_SECRET_TOKEN);
   useEffect(() => {
     if (!session) {
       router.push('/login');
@@ -180,20 +181,20 @@ export default function Home() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white p-4 rounded-lg shadow-md">
+        <div className="bg-gray-100 p-4 rounded-lg shadow-md">
           <h2 className="text-2xl font-bold mb-4">Recent Feedback</h2>
           <ul>
             {recentFeedback.map(feedback => (
               <li key={feedback.id} className="mb-2">
                 <h3 className="font-bold">{feedback.title}</h3>
-                <p>{feedback.description}</p>
+                <p>Device: {feedback.device_id} -- {feedback.description}</p>
                 <small className="text-gray-500">{new Date(feedback.timestamp).toLocaleString()}</small>
               </li>
             ))}
           </ul>
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow-md">
+        <div className="bg-gray-100 p-4 rounded-lg shadow-md">
           <h2 className="text-2xl font-bold mb-4">Recent Routes</h2>
           <ul>
             {recentRoutes.map(route => (

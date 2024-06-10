@@ -11,33 +11,33 @@ const Legend = () => (
       <span>Full bin</span>
     </div>
     <div className="flex items-center">
-      <span className="w-4 h-4 bg-yellow-300 inline-block mr-2"></span>
+      <span className="w-4 h-4 bg-orange-300 inline-block mr-2"></span>
       <span>Low battery</span>
     </div>
     <div className="flex items-center">
-      <span className="w-4 h-4 bg-green-300 inline-block mr-2"></span>
+      <span className="w-4 h-4 bg-green-400 inline-block mr-2"></span>
       <span>No issues</span>
     </div>
   </div>
 );
 
 function ListView({ devices }) {
-  const getListItemClass = (level, battery) => {
+  const getIndicatorColor = (level, battery) => {
     if (level >= 80 && battery <= 20) {
-      return 'bg-purple-400'; // Both full bin and low battery
+      return 'bg-purple-500'; // Both full bin and low battery
     } else if (level >= 80) {
-      return 'bg-red-300'; // Full bin
+      return 'bg-red-500'; // Full bin
     } else if (battery <= 20) {
-      return 'bg-yellow-300'; // Low battery
+      return 'bg-orange-300'; // Low battery
     } else {
-      return 'bg-green-300'; // No issues
+      return 'bg-green-400'; // No issues
     }
   };
 
   return (
     <div className="overflow-x-auto">
-        <Legend />
-      <table className="min-w-full bg-white border-collapse block md:table">
+      <Legend />
+      <table className="min-w-full bg-gray-200 border-collapse block md:table">
         <thead className="block md:table-header-group">
           <tr className="border border-gray-300 md:border-none block md:table-row absolute -top-full md:top-auto -left-full md:left-auto md:relative">
             <th className="bg-gray-600 p-2 text-white font-bold md:border md:border-gray-300 text-left block md:table-cell">ID</th>
@@ -52,15 +52,20 @@ function ListView({ devices }) {
         </thead>
         <tbody className="block md:table-row-group">
           {devices.map((device) => (
-            <tr key={device.id} className={`${getListItemClass(device.level, device.battery)} border border-gray-300 md:border-none block md:table-row`}>
-              <td className="p-2 md:border md:border-gray-300 text-left block md:table-cell">{device.unique_id}</td>
-              <td className="p-2 md:border md:border-gray-300 text-left block md:table-cell">{/* Alerts */}</td>
-              <td className="p-2 md:border md:border-gray-300 text-left block md:table-cell">{device.bin_height}</td>
-              <td className="p-2 md:border md:border-gray-300 text-left block md:table-cell">{device.level}%</td>
-              <td className="p-2 md:border md:border-gray-300 text-left block md:table-cell">{device.battery}%</td>
-              <td className="p-2 md:border md:border-gray-300 text-left block md:table-cell">{new Date(device.timestamp).toLocaleString()}</td>
-              <td className="p-2 md:border md:border-gray-300 text-left block md:table-cell">{device.reception}</td>
-              <td className="p-2 md:border md:border-gray-300 text-left block md:table-cell">
+            <tr key={device.id} className="border border-gray-400 md:border-none block md:table-row">
+              <td className="p-2 md:border md:border-gray-400 text-left block md:table-cell">
+                <div className="flex items-center">
+                  <span className={`w-4 h-4 mr-2 ${getIndicatorColor(device.level, device.battery)}`}></span>
+                  {device.unique_id}
+                </div>
+              </td>
+              <td className="p-2 md:border md:border-gray-400 text-left block md:table-cell">{/* Alerts */}</td>
+              <td className="p-2 md:border md:border-gray-400 text-left block md:table-cell">{device.bin_height}</td>
+              <td className="p-2 md:border md:border-gray-400 text-left block md:table-cell">{device.level}%</td>
+              <td className="p-2 md:border md:border-gray-400 text-left block md:table-cell">{device.battery}%</td>
+              <td className="p-2 md:border md:border-gray-400 text-left block md:table-cell">{new Date(device.timestamp).toLocaleString()}</td>
+              <td className="p-2 md:border md:border-gray-400 text-left block md:table-cell">{device.reception}</td>
+              <td className="p-2 md:border md:border-gray-400 text-left block md:table-cell">
                 <button className="bg-blue-500 text-white px-4 py-2">Submit Feedback</button>
                 <button className="bg-green-500 text-white px-4 py-2">View Historical Data</button>
               </td>
@@ -68,7 +73,6 @@ function ListView({ devices }) {
           ))}
         </tbody>
       </table>
-      
     </div>
   );
 }
