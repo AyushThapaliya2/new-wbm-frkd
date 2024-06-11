@@ -2,7 +2,11 @@ import { supabase } from '@/lib/supabaseClient';
 
 export const POST = async (req) => {
   const body = await req.json();
-  const { unique_id, battery, level, reception } = body;
+  const { token, unique_id, battery, level, reception } = body;
+  const secretToken = process.env.SECRET_TOKEN;
+  if(token !== secretToken){
+    return new Response(JSON.stringify({ status: 0, msg: 'Unauthorized request: TOKEN INVALID' }), { status: 403 });
+  }
 
   if (!unique_id) {
     return new Response(JSON.stringify({ status: 0, msg: 'Invalid input: unique_id is required' }), { status: 400 });
