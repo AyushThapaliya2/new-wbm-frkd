@@ -3,9 +3,8 @@
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
-import Navbar from '@/components/Navbar';
-import Sidebar from '@/components/Sidebar';
+import { fetchUserDetails, fetchDevices, fetchFeedbacks, addFeedback } from '@/lib/supabaseClient';
+import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
 
 export default function FeedbackPage() {
   const { session } = useAuth();
@@ -21,77 +20,74 @@ export default function FeedbackPage() {
   const [userDetails, setUserDetails] = useState({ fname: '', lname: '' });
   const [loading, setLoading] = useState(true);
   const [userLoading, setUserLoading] = useState(true);
+  const [formError, setFormError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
     if (!session) {
       router.push('/login');
     } else {
-      fetchUserDetails();
-      fetchDevices();
-      fetchFeedbacks();
+      fetchUserDetails(session.user.id).then(data => {
+        if (data) setUserDetails(data);
+        setUserLoading(false);
+      });
+      fetchDevices().then(data => setDevices(data));
+      fetchFeedbacks().then(data => {
+        setFeedbacks(data);
+        setSortedFeedbacks(data);
+        setLoading(false);
+      });
     }
   }, [session, router]);
 
   useEffect(() => {
-    const feedbackSubscription = supabase
-      .channel('public:feedbacks')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'feedbacks' }, payload => {
-        fetchFeedbacks();
-      })
-      .subscribe();
+    const unsubscribe = subscribeToTableChanges('feedbacks', () => {
+      fetchFeedbacks().then(data => {
+        setFeedbacks(data);
+        setSortedFeedbacks(data);
+      });
+    });
 
     return () => {
-      supabase.removeChannel(feedbackSubscription);
+      unsubscribe();
     };
   }, []);
 
-  const fetchUserDetails = async () => {
-    const { data, error } = await supabase
-      .from('users')
-      .select('fname, lname')
-      .eq('id', session.user.id)
-      .single();
-
-    if (error) {
-      console.error('Error fetching user details:', error);
-    } else {
-      setUserDetails(data);
-      setUserLoading(false);
+  const handleAddFeedback = async () => {
+    if (!deviceIdForFeedback) {
+      setFormError("Please select a device.");
+      return;
     }
-  };
-
-  const fetchDevices = async () => {
-    const { data, error } = await supabase.from('devices').select('*');
-    if (error) {
-      console.error('Error fetching devices:', error);
-    } else {
-      setDevices(data);
+    if (!deviceTitleForFeedback) {
+      setFormError("Please enter an issue title.");
+      return;
     }
-  };
-
-  const fetchFeedbacks = async () => {
-    const { data, error } = await supabase.from('feedbacks').select('*');
-    if (error) {
-      console.error('Error fetching feedbacks:', error);
-    } else {
-      setFeedbacks(data);
-      setSortedFeedbacks(data);
-      setLoading(false);
+    if (!deviceDescriptionForFeedback) {
+      setFormError("Please describe the issue.");
+      return;
     }
-  };
 
-  const addFeedback = async () => {
-    const { data, error } = await supabase.from('feedbacks').insert([{
+    const feedback = {
       device_id: deviceIdForFeedback,
       reported_by_id: session.user.id,
       reported_by_name: `${userDetails.fname} ${userDetails.lname}`,
       title: deviceTitleForFeedback,
       description: deviceDescriptionForFeedback
-    }]);
+    };
+
+    const { data, error } = await addFeedback(feedback);
+
     if (error) {
-      console.error('Error adding feedback:', error);
+      setFormError("Failed to submit feedback. Please try again.");
     } else {
       clearInputs();
+      setSuccessMessage("Feedback submitted successfully.");
+      setFormError(""); // Clear error message on successful submission
+
+      // Clear the success message after a few seconds
+      setTimeout(() => {
+        setSuccessMessage("");
+      }, 3000);
     }
   };
 
@@ -147,10 +143,15 @@ export default function FeedbackPage() {
       <div className="flex-1 transition-all duration-300">
         <main className="p-4">
           <h1 className="text-2xl font-bold mb-4">Submit Feedback</h1>
+          {formError && <p className="text-red-500 mb-4">{formError}</p>}
+          {successMessage && <p className="text-green-500 mb-4">{successMessage}</p>}
           <div className="mb-6">
             <select
               value={deviceIdForFeedback}
-              onChange={(e) => setDeviceIdForFeedback(e.target.value)}
+              onChange={(e) => {
+                setDeviceIdForFeedback(e.target.value);
+                setFormError(""); // Clear any existing error when user changes the value
+              }}
               className="p-2 border border-gray-300 rounded w-full mb-2"
             >
               <option value="">Select the device to report</option>
@@ -164,17 +165,23 @@ export default function FeedbackPage() {
               type="text"
               placeholder="Issue Title..."
               value={deviceTitleForFeedback}
-              onChange={(e) => setDeviceTitleForFeedback(e.target.value)}
+              onChange={(e) => {
+                setDeviceTitleForFeedback(e.target.value);
+                setFormError(""); // Clear any existing error when user changes the value
+              }}
               className="p-2 border border-gray-300 rounded w-full mb-2"
             />
             <textarea
               rows="5"
               placeholder="Describe the issue in detail..."
               value={deviceDescriptionForFeedback}
-              onChange={(e) => setDeviceDescriptionForFeedback(e.target.value)}
+              onChange={(e) => {
+                setDeviceDescriptionForFeedback(e.target.value);
+                setFormError(""); // Clear any existing error when user changes the value
+              }}
               className="p-2 border border-gray-300 rounded w-full mb-2"
             ></textarea>
-            <button onClick={addFeedback} className="p-2 bg-blue-500 text-white rounded">Submit Feedback</button>
+            <button onClick={handleAddFeedback} className="p-2 bg-blue-500 text-white rounded">Submit Feedback</button>
           </div>
 
           <h2 className="text-xl font-bold mb-4">Feedbacks</h2>

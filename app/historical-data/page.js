@@ -1,34 +1,9 @@
-'use client'
+'use client';
 import React, { useState, useEffect } from "react";
-import { Line } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  TimeScale
-} from 'chart.js';
-
-import { supabase } from '@/lib/supabaseClient';
-import 'chartjs-adapter-date-fns';
-import { jsPDF } from "jspdf";
-import JSZip from "jszip";
-import 'jspdf-autotable';
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  TimeScale
-);
+import { fetchHistoricalData, clearHistoricalData } from '@/lib/supabaseClient';
+import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
+import ChartComponent from '@/components/ChartComponent';
+import DownloadReport from '@/components/DownloadReport';
 
 function Data() {
   const colors = [
@@ -70,7 +45,7 @@ function Data() {
     },
     responsiveAnimationDuration: 0
   };
-  
+
   const [mockData, setHistorical] = useState([]);
   const [activeTab, setActiveTab] = useState('fillLevels');
   const [fillLevelsOverTime, setFillLevelsOverTime] = useState({
@@ -78,7 +53,7 @@ function Data() {
     datasets: []
   });
   const [lastSavedTimes, setLastSavedTimes] = useState({});
-  const [devicePings, setDevicePings] = useState({}); 
+  const [devicePings, setDevicePings] = useState({});
   const [deviceInsights, setDeviceInsights] = useState({});
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -90,74 +65,57 @@ function Data() {
 
   useEffect(() => {
     const getHistorical = async () => {
-      const { data, error } = await supabase
-        .from('historical')
-        .select('*');
+      const data = await fetchHistoricalData();
+      setHistorical(data);
 
-      if (error) {
-        console.error('Error fetching historical data:', error);
-      } else {
-        setHistorical(data);
+      // Calculate start and end dates based on the fetched data
+      const dates = data.map(item => new Date(item.saved_time));
+      const minDate = dates.length ? new Date(Math.min(...dates)) : new Date();
+      let maxDate = dates.length ? new Date(Math.max(...dates)) : new Date();
+      maxDate.setDate(maxDate.getDate() + 1);
 
-        // Calculate start and end dates based on the fetched data
-        const dates = data.map(item => new Date(item.saved_time));
-        const minDate = dates.length ? new Date(Math.min(...dates)) : new Date();
-        let maxDate = dates.length ? new Date(Math.max(...dates)) : new Date();
-        maxDate.setDate(maxDate.getDate() + 1);
-
-        setStartDate(minDate.toISOString().split('T')[0]);
-        setEndDate(maxDate.toISOString().split('T')[0]);
-      }
+      setStartDate(minDate.toISOString().split('T')[0]);
+      setEndDate(maxDate.toISOString().split('T')[0]);
     };
 
     getHistorical();
 
-    // Subscribe to real-time updates
-    const historicalSubscription = supabase
-      .channel('public:historical')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'historical' }, (payload) => {
-        console.log('Change received!', payload);
-
-        switch (payload.eventType) {
-          case 'INSERT':
-            setHistorical((prevData) => [...prevData, payload.new]);
-            break;
-          case 'UPDATE':
-            setHistorical((prevData) =>
-              prevData.map((item) =>
-                item.id === payload.new.id ? payload.new : item
-              )
-            );
-            break;
-          case 'DELETE':
-            setHistorical((prevData) =>
-              prevData.filter((item) => item.id !== payload.old.id)
-            );
-            break;
-          default:
-            break;
-        }
-      })
-      .subscribe();
+    const unsubscribe = subscribeToTableChanges('historical', (payload) => {
+      switch (payload.eventType) {
+        case 'INSERT':
+          setHistorical((prevData) => [...prevData, payload.new]);
+          break;
+        case 'UPDATE':
+          setHistorical((prevData) =>
+            prevData.map((item) =>
+              item.id === payload.new.id ? payload.new : item
+            )
+          );
+          break;
+        case 'DELETE':
+          setHistorical((prevData) =>
+            prevData.filter((item) => item.id !== payload.old.id)
+          );
+          break;
+        default:
+          break;
+      }
+    });
 
     return () => {
-      supabase.removeChannel(historicalSubscription);
+      unsubscribe();
     };
   }, []);
 
   const clearHistorical = async () => {
-    const { error } = await supabase
-      .from('historical')
-      .delete()
-      .neq('id', 0); // Use a condition to delete all rows
-
-    if (error) {
+    const success = await clearHistoricalData();
+    if (!success) {
       alert('Error clearing historical data');
     } else {
       setHistorical([]);
     }
   };
- 
+
   useEffect(() => {
     updateChartData();
   }, [mockData, startDate, endDate]);
@@ -177,23 +135,23 @@ function Data() {
       const itemDate = new Date(item.saved_time);
       const adjust = itemDate.getTimezoneOffset() * 60 * 1000;
       const dateToSave = new Date(itemDate.getTime() + adjust);
-  
+
       acc[item.unique_id].data.push({
         ...item,
         saved_time: dateToSave
       });
-  
+
       if (!acc[item.unique_id].lastSavedTime || dateToSave > acc[item.unique_id].lastSavedTime) {
         acc[item.unique_id].lastSavedTime = dateToSave;
       }
       return acc;
     }, {});
-  
+
     const datasets = [];
     const lastTimes = {};
     const pings = {};
     const insights = {};
-  
+
     for (const [unique_id, { data, lastSavedTime }] of Object.entries(groupedByDevice)) {
       const colorIndex = unique_id % colors.length;
       datasets.push({
@@ -236,7 +194,7 @@ function Data() {
         frequentRapidChangesSummary: summarizeRapidChanges(rapidChanges)
       };
     }
-    
+
     setFillLevelsOverTime({
       datasets
     });
@@ -263,7 +221,7 @@ function Data() {
       times: data.times.join(", ")
     }));
   };
-  
+
   const summarizeRapidChanges = (changes) => {
     const summary = {};
     changes.forEach(change => {
@@ -275,148 +233,6 @@ function Data() {
     });
     return summary;
   };
-
-  const handleDownload = async (deviceId) => {
-    const zip = new JSZip();
-    const currentDate = new Date().toISOString().slice(0, 10);
-    const pdf = new jsPDF({
-      orientation: 'p',
-      unit: 'mm',
-      format: 'a4'
-    });
-    const pageHeight = pdf.internal.pageSize.height;
-    
-    pdf.setFontSize(16);
-    pdf.text('WBM Manager\'s Report', 105, 20, null, null, 'center');
-    pdf.setFontSize(12);
-    pdf.text(`Date Range: ${startDate} to ${endDate}`, 105, 30, null, null, 'center');
-    pdf.setLineWidth(0.5);
-    pdf.line(20, 35, 190, 35);
-
-    const chart = document.querySelector('canvas');
-    if (chart) {
-      const chartImg = chart.toDataURL('image/png');
-      pdf.addImage(chartImg, 'PNG', 15, 40, 180, 90);
-    }
-    
-    let yPos = 140;
-
-    Object.keys(deviceInsights).forEach((id, index) => {
-      const { commonAnomalies, frequentRapidChangesSummary } = deviceInsights[id];
-      if (yPos >= 260) {
-        pdf.addPage();
-        yPos = 20;
-      }
-  
-      pdf.setFontSize(14);
-      pdf.text(`Device ${id} Insights:`, 15, yPos);
-      yPos += 10;
-  
-      pdf.setFontSize(11);
-      pdf.text(`Total Pings: ${devicePings[id]}`, 15, yPos);
-      yPos += 10;
-  
-      pdf.setFontSize(11);
-      pdf.text('Out of Range:', 15, yPos);
-      yPos += 5;
-      pdf.setFontSize(10);
-      pdf.autoTable({
-        startY: yPos,
-        theme: 'grid',
-        head: [['Level', 'Occurrences', 'Times']],
-        body: deviceInsights[id].commonAnomalies.map(anomaly => [anomaly.level, anomaly.occurrences, anomaly.times]),
-        margin: { left: 15, right: 15 },
-        tableWidth: 180,
-        styles: {
-          cellWidth: 'wrap',
-          fontSize: 8,
-          cellPadding: 1,
-          overflow: 'linebreak',
-        },
-        headStyles: {
-          fillColor: [74, 85, 104],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold'
-        },
-        columnStyles: {
-          0: { cellWidth: 40 },
-          1: { cellWidth: 30 },
-          2: { cellWidth: 110 }
-        },
-      });
-      yPos = pdf.lastAutoTable.finalY + 10;
-  
-      if (yPos >= pageHeight - 20) {
-        pdf.addPage();
-        yPos = 20;
-      }
-  
-      pdf.text('Rapid Changes:', 15, yPos);
-      yPos += 5;
-      pdf.autoTable({
-        startY: yPos,
-        theme: 'grid',
-        head: [['Change', 'Details']],
-        body: Object.entries(deviceInsights[id].frequentRapidChangesSummary).map(([change, times]) => [change, times.join(", ")]),
-        margin: { left: 15, right: 15 },
-        tableWidth: 180,
-        styles: {
-          cellWidth: 'wrap',
-          fontSize: 8,
-          cellPadding: 1,
-          overflow: 'linebreak',
-        },
-        headStyles: {
-          fillColor: [74, 85, 104],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold'
-        },
-        columnStyles: {
-          0: { cellWidth: 60 },
-          1: { cellWidth: 120 }
-        },
-      });
-      yPos = pdf.lastAutoTable.finalY + 10;
-  
-      pdf.setFontSize(10);
-      pdf.text(`Page ${pdf.internal.getNumberOfPages()}`, 105, 287, null, null, 'center');
-  
-      const anomaliesData = commonAnomalies.map(anomaly => ({
-        deviceId: id,
-        type: 'Out of Range',
-        detail: anomaly.level,
-        occurrences: anomaly.occurrences,
-        times: anomaly.times
-      }));
-      const changesData = Object.entries(frequentRapidChangesSummary).map(([change, times]) => ({
-        deviceId: id,
-        type: 'Rapid Change',
-        detail: change,
-        occurrences: times.length,
-        times: times.join(", ")
-      }));
-      const combinedData = [...anomaliesData, ...changesData];
-      const csvRows = ['Device ID,Type,Detail,Occurrences,Times'];
-      combinedData.forEach(item => {
-        csvRows.push(`${item.deviceId},${item.type},${item.detail},${item.occurrences},${item.times}`);
-      });
-      const csvString = csvRows.join('\n');
-      zip.file(`Device_${id}_Insights_${currentDate}.csv`, csvString);
-    });
-  
-    const pdfBlob = pdf.output("blob");
-    zip.file("WBM_Manager's_Report.pdf", pdfBlob);
-  
-    zip.generateAsync({ type: "blob" }).then(function(content) {
-      const url = URL.createObjectURL(content);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = "WBM_Report.zip";
-      a.click();
-      URL.revokeObjectURL(url);
-    });
-  };
-
   return (
     <div className="max-w-7xl mx-auto my-4 p-6 bg-white rounded-lg shadow-md text-gray-800 font-sans">
       <div className="flex justify-between items-center px-5 mb-10">
@@ -436,12 +252,17 @@ function Data() {
       <div className="flex flex-col gap-8">
         <div className="w-full bg-gray-200 rounded-lg p-8 shadow-md">
           <h2>Fill Levels Over Time</h2>
-          <Line data={fillLevelsOverTime} options={chartOptions} />
+          <ChartComponent data={fillLevelsOverTime} options={chartOptions} />
         </div>
         <div className="w-full bg-gray-100 rounded-lg p-8 shadow-md">
           <h2 className="text-2xl mb-4">Device Insights</h2>
           <div className="flex justify-end mb-4">
-            <button className="bg-green-500 text-white rounded px-4 py-2 text-lg transition duration-300 hover:bg-green-600" onClick={() => handleDownload(null)}>Download Summary Data</button>
+            <DownloadReport
+              deviceInsights={deviceInsights}
+              devicePings={devicePings}
+              startDate={startDate}
+              endDate={endDate}
+            />
           </div>
           {Object.entries(deviceInsights).map(([id, insight]) => (
             <div key={id} className="bg-white rounded-lg p-5 shadow-md mb-5">
@@ -505,3 +326,4 @@ function Data() {
 }
 
 export default Data;
+
