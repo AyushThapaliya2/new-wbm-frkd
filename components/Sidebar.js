@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { FaHome, FaTrash, FaRoute, FaDatabase, FaCommentDots, FaTimes } from 'react-icons/fa';
+import { FaHome, FaTrash, FaRoute, FaDatabase, FaCommentDots, FaTimes, FaPlus } from 'react-icons/fa';
 
 export default function Sidebar({ isOpen, toggleSidebar }) {
   return (
@@ -28,6 +28,10 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
         <li className="flex items-center p-4 border-b border-gray-600">
           <FaCommentDots className="mr-2" />
           <Link href="/feedback" onClick={toggleSidebar}>Feedback</Link>
+        </li>
+        <li className="flex items-center p-4 border-b border-gray-600">
+          <FaPlus className="mr-2" />
+          <Link href="/register-bin" onClick={toggleSidebar}>Register New Bin</Link>
         </li>
       </ul>
     </div>

@@ -4,7 +4,8 @@ export const POST = async (req) => {
   const body = await req.json();
   const { token, unique_id, battery, level, reception } = body;
   const secretToken = process.env.SECRET_TOKEN;
-  if(token !== secretToken){
+  
+  if (token !== secretToken) {
     return new Response(JSON.stringify({ status: 0, msg: 'Unauthorized request: TOKEN INVALID' }), { status: 403 });
   }
 
@@ -26,14 +27,37 @@ export const POST = async (req) => {
   try {
     const { data: deviceData, error: deviceError } = await supabase
       .from('devices')
-      .select('bin_height')
+      .select('bin_height, is_registered')
       .eq('unique_id', unique_id)
-      .single();
+      .maybeSingle(); // Use maybeSingle() to avoid throwing an error
 
-    if (deviceError || !deviceData) {
-      throw deviceError || new Error('Device not found');
+    if (deviceError) {
+      throw deviceError;
     }
 
+    if (!deviceData) {
+      // Insert new device with is_registered set to false
+      const { data: newDeviceData, error: newDeviceError } = await supabase
+        .from('devices')
+        .insert({ 
+          unique_id: unique_id,
+          battery: battery,
+          level: level,
+          reception: reception,
+          timestamp: new Date(),
+          is_registered: false 
+        })
+        .select() // Use select() to return the inserted row
+        .single();
+
+      if (newDeviceError) {
+        throw newDeviceError;
+      }
+
+      return new Response(JSON.stringify({ status: 1, msg: 'New device inserted with is_registered set to false', data: newDeviceData }), { status: 200 });
+    }
+
+    // Proceed with updating the existing device
     const binHeight = deviceData.bin_height;
     const trashHeight = binHeight - level;
     const level_in_percents = parseInt((trashHeight * 100) / binHeight);
@@ -42,23 +66,28 @@ export const POST = async (req) => {
       .from('devices')
       .update(updateFields)
       .eq('unique_id', unique_id)
+      .select() // Use select() to return the updated row
       .single();
 
     if (updateError) {
       throw updateError;
     }
 
-    const { data: historicalData, error: historicalError } = await supabase
-      .from('historical')
-      .insert({
-        unique_id: unique_id,
-        level_in_percents: level_in_percents,
-        saved_time: new Date(),
-      })
-      .single();
+    // Save to historical table if the device is registered
+    if (deviceData.is_registered) {
+      const { data: historicalData, error: historicalError } = await supabase
+        .from('historical')
+        .insert({
+          unique_id: unique_id,
+          level_in_percents: level_in_percents,
+          saved_time: new Date(),
+        })
+        .select() // Use select() to return the inserted row
+        .single();
 
-    if (historicalError) {
-      throw historicalError;
+      if (historicalError) {
+        throw historicalError;
+      }
     }
 
     return new Response(JSON.stringify({ status: 1, msg: 'Device information updated and saved to historical', data: updateData }), { status: 200 });
