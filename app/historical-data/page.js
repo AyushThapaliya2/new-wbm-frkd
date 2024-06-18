@@ -37,6 +37,8 @@ function Data() {
         }
       }
     },
+    responsive: true,
+    maintainAspectRatio: false,
     animation: {
       duration: 5
     },
@@ -132,9 +134,9 @@ function Data() {
       if (!acc[item.unique_id]) {
         acc[item.unique_id] = { data: [], lastSavedTime: null };
       }
-      const itemDate = new Date(item.saved_time);
-      const adjust = itemDate.getTimezoneOffset() * 60 * 1000;
-      const dateToSave = new Date(itemDate.getTime() + adjust);
+      const dateToSave = new Date(item.saved_time);
+      // const adjust = itemDate.getTimezoneOffset() * 60 * 1000;
+      // const dateToSave = new Date(itemDate.getTime() + adjust); //adjustment was needed for last DB, but not necessary for current DB setup
 
       acc[item.unique_id].data.push({
         ...item,
@@ -252,7 +254,9 @@ function Data() {
       <div className="flex flex-col gap-8">
         <div className="w-full bg-gray-200 rounded-lg p-8 shadow-md">
           <h2>Fill Levels Over Time</h2>
-          <ChartComponent data={fillLevelsOverTime} options={chartOptions} />
+          <div className="relative h-96">
+            <ChartComponent data={fillLevelsOverTime} options={chartOptions} />
+          </div>
         </div>
         <div className="w-full bg-gray-100 rounded-lg p-8 shadow-md">
           <h2 className="text-2xl mb-4">Device Insights</h2>
@@ -326,4 +330,3 @@ function Data() {
 }
 
 export default Data;
-
