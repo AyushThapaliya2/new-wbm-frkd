@@ -236,7 +236,7 @@ function Data() {
     return summary;
   };
   return (
-    <div className="max-w-7xl mx-auto my-4 p-6 bg-white rounded-lg shadow-md text-gray-800 font-sans">
+    <div className="mx-auto my-4 p-6 bg-white rounded-lg shadow-md text-gray-800 font-sans">
       <div className="flex justify-between items-center px-5 mb-10">
         <input
           type="date"

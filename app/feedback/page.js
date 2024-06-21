@@ -149,7 +149,7 @@ export default function FeedbackPage() {
   if (!session || !session.user) return null;
 
   return (
-    <div className="flex h-screen">
+    <div className="max-w-7xl mx-auto flex flex-col lg:flex-row h-screen">
       <div className="flex-1 transition-all duration-300">
         <main className="p-4">
           <h1 className="text-2xl font-bold mb-4">Submit Feedback</h1>

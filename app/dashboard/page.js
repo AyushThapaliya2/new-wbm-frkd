@@ -155,7 +155,7 @@ export default function Home() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-6 bg-white rounded-lg shadow-md text-gray-800 font-sans">
+    <div className="mx-auto p-6 bg-white rounded-lg shadow-md text-gray-800 font-sans">
       <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">

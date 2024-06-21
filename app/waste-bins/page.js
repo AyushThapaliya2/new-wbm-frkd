@@ -97,7 +97,7 @@ export default function BinView() {
   };
 
   return (
-    <div className="flex h-screen">
+    <div className="max-w-7xl mx-auto flex h-screen">
       <div className="flex-1 transition-all duration-300">
         <main className="p-4">
           <div className="flex justify-center mb-4 space-x-4">

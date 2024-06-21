@@ -385,12 +385,12 @@ const Routes = () => {
   }, [devicesToWorkOn, travelMode]);
 
   return (
-    <div className="flex h-screen">
+    <div className="flex flex-col lg:flex-row h-screen">
       <div className="flex-1 flex flex-col">
         <main className="flex-1 p-4 flex flex-col space-y-4">
           <div className="bg-gray-100 p-6 rounded-lg shadow-md mb-4">
             <h1 className="text-2xl font-bold mb-4">Manage Routes</h1>
-            <div className="flex items-center space-x-4 mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-4 sm:space-y-0 mb-4">
               <label className="flex items-center space-x-2">
                 <input
                   type="checkbox"
@@ -409,7 +409,7 @@ const Routes = () => {
                 />
                 <span>Empty Bin</span>
               </label>
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 space-y-2 sm:space-y-0">
                 <span>Estimated time:</span>
                 <select
                   value={travelMode}
@@ -429,7 +429,7 @@ const Routes = () => {
               </button>
             </div>
             <div className="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-4">
-              <div className="lg:w-2/3 p-4 bg-white rounded shadow-md">
+              <div className="w-full lg:w-2/3 p-4 bg-white rounded shadow-md">
                 <MapView
                   devices={devicesToWorkOn}
                   directions={directions}
@@ -439,72 +439,74 @@ const Routes = () => {
                   fetchDirections={fetchDirections}
                 />
               </div>
-              <div className="lg:w-1/3 p-4 bg-white rounded shadow-md flex flex-col space-y-4">
+              <div className="w-full lg:w-1/3 p-4 bg-white rounded shadow-md flex flex-col space-y-4">
                 <h3 className="text-lg font-bold mb-2">Route Summary</h3>
                 <p className="mb-4">Total Bins: {devicesToWorkOn.length}</p>
                 {renderWorkToDo()}
               </div>
             </div>
           </div>
-          <table className="min-w-full bg-white border-collapse">
-            <thead>
-              <tr className="border border-gray-300">
-                <th className="p-2 border border-gray-300">Route ID</th>
-                <th className="p-2 border border-gray-300">Created By</th>
-                <th className="p-2 border border-gray-300">Bin Id's</th>
-                <th className="p-2 border border-gray-300">Status</th>
-                <th className="p-2 border border-gray-300">Created at</th>
-                <th className="p-2 border border-gray-300">Started</th>
-                <th className="p-2 border border-gray-300">Finished</th>
-                <th className="p-2 border border-gray-300">Controls</th>
-              </tr>
-            </thead>
-            <tbody>
-              {allRoutes.length > 0 ? (
-                allRoutes.map((route) => (
-                  <tr key={route.id} className="border border-gray-300">
-                    <td className="p-2 border border-gray-300">{route.id}</td>
-                    <td className="p-2 border border-gray-300">{route.employeeid}</td>
-                    <td className="p-2 border border-gray-300">{route.deviceids.join(", ")}</td>
-                    <td className="p-2 border border-gray-300">{route.status}</td>
-                    <td className="p-2 border border-gray-300">{new Date(route.timestamp).toLocaleString()}</td>
-                    <td className="p-2 border border-gray-300">
-                      {route.started !== null ? new Date(route.started).toLocaleString() : null}
-                    </td>
-                    <td className="p-2 border border-gray-300">
-                      {route.finished !== null ? new Date(route.finished).toLocaleString() : null}
-                    </td>
-                    <td className="p-2 border border-gray-300">
-                      {route.status === "pending" && (
-                        <button onClick={() => startRoute(route.id)} className="bg-green-500 text-white px-2 py-1 rounded">
-                          Start
-                        </button>
-                      )}
-                      {route.status === "started" && (
-                        <button onClick={() => finishRoute(route.id)} className="bg-blue-500 text-white px-2 py-1 rounded">
-                          Complete
-                        </button>
-                      )}
-                      {route.status === "finished" && (
-                        <button onClick={() => deleteRoute(route.id)} className="bg-red-500 text-white px-2 py-1 rounded">
-                          Delete
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="8" className="p-2 border border-gray-300 text-center">No routes available</td>
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-white border-collapse">
+              <thead>
+                <tr className="border border-gray-300">
+                  <th className="p-2 border border-gray-300">Route ID</th>
+                  <th className="p-2 border border-gray-300">Created By</th>
+                  <th className="p-2 border border-gray-300">Bin Id's</th>
+                  <th className="p-2 border border-gray-300">Status</th>
+                  <th className="p-2 border border-gray-300">Created at</th>
+                  <th className="p-2 border border-gray-300">Started</th>
+                  <th className="p-2 border border-gray-300">Finished</th>
+                  <th className="p-2 border border-gray-300">Controls</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {allRoutes.length > 0 ? (
+                  allRoutes.map((route) => (
+                    <tr key={route.id} className="border border-gray-300">
+                      <td className="p-2 border border-gray-300">{route.id}</td>
+                      <td className="p-2 border border-gray-300">{route.employeeid}</td>
+                      <td className="p-2 border border-gray-300">{route.deviceids.join(", ")}</td>
+                      <td className="p-2 border border-gray-300">{route.status}</td>
+                      <td className="p-2 border border-gray-300">{new Date(route.timestamp).toLocaleString()}</td>
+                      <td className="p-2 border border-gray-300">
+                        {route.started !== null ? new Date(route.started).toLocaleString() : null}
+                      </td>
+                      <td className="p-2 border border-gray-300">
+                        {route.finished !== null ? new Date(route.finished).toLocaleString() : null}
+                      </td>
+                      <td className="p-2 border border-gray-300">
+                        {route.status === "pending" && (
+                          <button onClick={() => startRoute(route.id)} className="bg-green-500 text-white px-2 py-1 rounded">
+                            Start
+                          </button>
+                        )}
+                        {route.status === "started" && (
+                          <button onClick={() => finishRoute(route.id)} className="bg-blue-500 text-white px-2 py-1 rounded">
+                            Complete
+                          </button>
+                        )}
+                        {route.status === "finished" && (
+                          <button onClick={() => deleteRoute(route.id)} className="bg-red-500 text-white px-2 py-1 rounded">
+                            Delete
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="8" className="p-2 border border-gray-300 text-center">No routes available</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </main>
       </div>
     </div>
   );
-};
+};  
 
 export default Routes;
 
