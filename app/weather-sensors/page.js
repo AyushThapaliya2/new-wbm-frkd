@@ -46,13 +46,13 @@ export default function BinView() {
   }, [])
 
   useEffect(() => {
-    fetchBinDevices();
+    fetchWeatherDevices();
 
     const subscription = supabase
       .channel('public:devices')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'devices' }, (payload) => {
         console.log('Change received!', payload);
-        fetchBinDevices();
+        fetchWeatherDevices();
       })
       .subscribe();
 
@@ -61,9 +61,9 @@ export default function BinView() {
     };
   }, []);
 
-  const fetchBinDevices = async () => {
+  const fetchWeatherDevices = async () => {
     const { data, error } = await supabase
-      .from('devices')
+      .from('weather_sensors')
       .select('*')
       .eq('is_registered', true);
 
@@ -88,9 +88,9 @@ export default function BinView() {
 
   const mapListToggle = () => {
     if (view === 'map') {
-      return <MapView devices={devices} deviceType='bins' />;
+      return <MapView devices={devices} showLegend = {true} deviceType='weather' />;
     } else if (view === 'list') {
-      return <ListView devices={devices} deviceType='bins' />;
+      return <ListView devices={devices} deviceType='weather' />;
     } else {
       return null;
     }

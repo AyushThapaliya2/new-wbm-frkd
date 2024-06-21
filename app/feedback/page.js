@@ -3,12 +3,14 @@
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { fetchUserDetails, fetchDevices, fetchFeedbacks, addFeedback } from '@/lib/supabaseClient';
+import { fetchUserDetails, fetchBinDevices, fetchWeatherDevices, fetchFeedbacks, addFeedback } from '@/lib/supabaseClient';
 import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
+import { FaTrash, FaSun } from 'react-icons/fa';
 
 export default function FeedbackPage() {
   const { session } = useAuth();
   const router = useRouter();
+  const [deviceType, setDeviceType] = useState("waste bins");
   const [devices, setDevices] = useState([]);
   const [feedbacks, setFeedbacks] = useState([]);
   const [sortedFeedbacks, setSortedFeedbacks] = useState([]);
@@ -31,14 +33,20 @@ export default function FeedbackPage() {
         if (data) setUserDetails(data);
         setUserLoading(false);
       });
-      fetchDevices().then(data => setDevices(data));
+
+      if (deviceType === "waste bins") {
+        fetchBinDevices().then(data => setDevices(data));
+      } else {
+        fetchWeatherDevices().then(data => setDevices(data));
+      }
+
       fetchFeedbacks().then(data => {
         setFeedbacks(data);
         setSortedFeedbacks(data);
         setLoading(false);
       });
     }
-  }, [session, router]);
+  }, [session, router, deviceType]);
 
   useEffect(() => {
     const unsubscribe = subscribeToTableChanges('feedbacks', () => {
@@ -72,7 +80,9 @@ export default function FeedbackPage() {
       reported_by_id: session.user.id,
       reported_by_name: `${userDetails.fname} ${userDetails.lname}`,
       title: deviceTitleForFeedback,
-      description: deviceDescriptionForFeedback
+      description: deviceDescriptionForFeedback,
+      devicetype: deviceType === 'waste bins' ? 'Bin' : 'Weather'
+
     };
 
     const { data, error } = await addFeedback(feedback);
@@ -147,6 +157,21 @@ export default function FeedbackPage() {
           {successMessage && <p className="text-green-500 mb-4">{successMessage}</p>}
           <div className="mb-6">
             <select
+              value={deviceType}
+              onChange={(e) => {
+                setDeviceType(e.target.value);
+                clearInputs();
+              }}
+              className="p-2 border border-gray-300 rounded w-full mb-2"
+            >
+              <option value="waste bins">
+                <FaTrash className="inline mr-2" />Waste Bins
+              </option>
+              <option value="weather sensors">
+                <FaSun className="inline mr-2" />Weather Sensors
+              </option>
+            </select>
+            <select
               value={deviceIdForFeedback}
               onChange={(e) => {
                 setDeviceIdForFeedback(e.target.value);
@@ -199,6 +224,7 @@ export default function FeedbackPage() {
               <thead>
                 <tr>
                   <th className="px-4 py-2 border-b" onClick={() => sortFeedbacks("reported_by_name")}>Employee</th>
+                  <th className="px-4 py-2 border-b">Device Type</th>
                   <th className="px-4 py-2 border-b" onClick={() => sortFeedbacks("device_id")}>Device</th>
                   <th className="px-4 py-2 border-b" onClick={() => sortFeedbacks("title")}>Title</th>
                   <th className="px-4 py-2 border-b">Description</th>
@@ -210,6 +236,7 @@ export default function FeedbackPage() {
                   filteredFeedbacks.map((feedback) => (
                     <tr key={feedback.id}>
                       <td className="px-4 py-2 border-b">{feedback.reported_by_name}</td>
+                      <td className="px-4 py-2 border-b">{feedback.devicetype}</td>
                       <td className="px-4 py-2 border-b">{feedback.device_id}</td>
                       <td className="px-4 py-2 border-b">{feedback.title}</td>
                       <td className="px-4 py-2 border-b">{feedback.description}</td>
@@ -218,7 +245,7 @@ export default function FeedbackPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="5" className="px-4 py-2 text-center border-b">No feedback found.</td>
+                    <td colSpan="6" className="px-4 py-2 text-center border-b">No feedback found.</td>
                   </tr>
                 )}
               </tbody>

@@ -12,7 +12,7 @@ const mapOptions = {
 const libraries = ['places'];
 const zoomDistance = 16;
 
-const MapView = ({ devices, directions = null, mapWidth = '100%', mapHeight = '80vh', travelMode = null, fetchDirections = null, onClick, userLocation, showLegend = true }) => {
+const MapView = ({ devices, directions = null, mapWidth = '100%', mapHeight = '80vh', travelMode = null, fetchDirections = null, onClick, userLocation, showLegend = true, deviceType }) => {
   const [selectedMarker, setSelectedMarker] = useState(null);
   const [clickLocation, setClickLocation] = useState(null);
 
@@ -60,14 +60,18 @@ const MapView = ({ devices, directions = null, mapWidth = '100%', mapHeight = '8
   };
 
   const getStatusColor = (level, battery) => {
-    if (level >= 80 && battery <= 25) {
-      return 'purple'; // Both full bin and low battery
-    } else if (level >= 80) {
-      return 'red'; // Full bin
-    } else if (battery <= 25) {
-      return 'orange'; // Low battery
+    if (deviceType === 'weather') {
+      return battery > 20 ? 'green' : 'red';
     } else {
-      return 'green'; // No issues
+      if (level >= 80 && battery <= 25) {
+        return 'purple'; // Both full bin and low battery
+      } else if (level >= 80) {
+        return 'red'; // Full bin
+      } else if (battery <= 25) {
+        return 'orange'; // Low battery
+      } else {
+        return 'green'; // No issues
+      }
     }
   };
 
@@ -90,28 +94,47 @@ const MapView = ({ devices, directions = null, mapWidth = '100%', mapHeight = '8
     return icons;
   };
 
-  const Legend = () => (
-    <div className="absolute bottom-4 left-4 bg-white p-4 shadow-lg rounded-lg">
-      <div className="flex flex-col space-y-2">
-        <div className="flex items-center">
-          <span className="w-4 h-4 bg-purple-500 inline-block mr-2"></span>
-          <span>Full bin + low battery</span>
+  const Legend = ({ deviceType }) => {
+    if (deviceType === 'weather') {
+      return (
+        <div className="absolute bottom-4 left-4 bg-white p-4 shadow-lg rounded-lg">
+          <div className="flex flex-col space-y-2">
+            <div className="flex items-center">
+              <span className="w-4 h-4 bg-green-400 inline-block mr-2"></span>
+              <span>Battery OK</span>
+            </div>
+            <div className="flex items-center">
+              <span className="w-4 h-4 bg-red-500 inline-block mr-2"></span>
+              <span>Change Battery</span>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center">
-          <span className="w-4 h-4 bg-red-500 inline-block mr-2"></span>
-          <span>Full bin</span>
-        </div>
-        <div className="flex items-center">
-          <span className="w-4 h-4 bg-orange-300 inline-block mr-2"></span>
-          <span>Low battery</span>
-        </div>
-        <div className="flex items-center">
-          <span className="w-4 h-4 bg-green-400 inline-block mr-2"></span>
-          <span>No issues</span>
+      );
+    }
+
+    return (
+      <div className="absolute bottom-4 left-4 bg-white p-4 shadow-lg rounded-lg">
+        <div className="flex flex-col space-y-2">
+          <div className="flex items-center">
+            <span className="w-4 h-4 bg-purple-500 inline-block mr-2"></span>
+            <span>Full bin + low battery</span>
+          </div>
+          <div className="flex items-center">
+            <span className="w-4 h-4 bg-red-500 inline-block mr-2"></span>
+            <span>Full bin</span>
+          </div>
+          <div className="flex items-center">
+            <span className="w-4 h-4 bg-orange-300 inline-block mr-2"></span>
+            <span>Low battery</span>
+          </div>
+          <div className="flex items-center">
+            <span className="w-4 h-4 bg-green-400 inline-block mr-2"></span>
+            <span>No issues</span>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="relative w-full h-full">
@@ -148,7 +171,11 @@ const MapView = ({ devices, directions = null, mapWidth = '100%', mapHeight = '8
                     {renderStatusIcons(device.level, device.battery)}
                     <p className="font-bold">ID: {device.unique_id}</p>
                     <p>Battery: {device.battery}%</p>
-                    <p>Level: {device.level}%</p>
+                    {deviceType === 'bins' && (
+                      <>
+                        <p>Level: {device.level}%</p>
+                      </>
+                    )}
                     <p>Checked: {device.last_updated}</p>
                     <button className="bg-blue-500 text-white px-2 py-1 mt-2 rounded">
                       Submit Feedback
@@ -191,7 +218,7 @@ const MapView = ({ devices, directions = null, mapWidth = '100%', mapHeight = '8
           />
         )}
       </GoogleMap>
-      {showLegend && <Legend />}
+      {showLegend && <Legend deviceType={deviceType} />}
     </div>
   );
 };

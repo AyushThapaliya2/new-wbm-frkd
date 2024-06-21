@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { FaHome, FaTrash, FaRoute, FaDatabase, FaCommentDots, FaTimes, FaPlus } from 'react-icons/fa';
+import { FaHome, FaTrash, FaRoute, FaDatabase, FaCommentDots, FaTimes, FaPlus, FaSun } from 'react-icons/fa';
 
 export default function Sidebar({ isOpen, toggleSidebar }) {
   return (
@@ -18,6 +18,10 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
           <Link href="/waste-bins" onClick={toggleSidebar}>Bins</Link>
         </li>
         <li className="flex items-center p-4 border-b border-gray-600">
+          <FaSun className="mr-2" />
+          <Link href="/weather-sensors" onClick={toggleSidebar}>Weather Sensors</Link>
+        </li>
+        <li className="flex items-center p-4 border-b border-gray-600">
           <FaRoute className="mr-2" />
           <Link href="/routes" onClick={toggleSidebar}>Routes</Link>
         </li>
@@ -31,7 +35,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
         </li>
         <li className="flex items-center p-4 border-b border-gray-600">
           <FaPlus className="mr-2" />
-          <Link href="/register-bin" onClick={toggleSidebar}>Register New Bin</Link>
+          <Link href="/register-device" onClick={toggleSidebar}>Register New Device</Link>
         </li>
       </ul>
     </div>
