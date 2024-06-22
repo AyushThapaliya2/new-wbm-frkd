@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '../../lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import bcrypt from 'bcryptjs';
 import Link from 'next/link';
+import { checkEmailExists, createUser } from '../../lib/supabaseClient';
 
 export default function Signup() {
   const [email, setEmail] = useState('');
@@ -19,24 +19,21 @@ export default function Signup() {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Check if email already exists
-    const { data: existingUsers, error: selectError } = await supabase
-      .from('users')
-      .select('email')
-      .eq('email', email);
+    const emailExists = await checkEmailExists(email);
 
-    if (selectError) {
-      alert(selectError.message);
-      return;
-    }
-
-    if (existingUsers.length > 0) {
+    if (emailExists) {
       alert('Email already in use. Please use a different email.');
       return;
     }
 
-    const { error: insertError } = await supabase.from('users').insert([
-      { email, password: hashedPassword, fname, lname, role, start_date: new Date().toISOString() }
-    ]);
+    const { error: insertError } = await createUser({
+      email,
+      password: hashedPassword,
+      fname,
+      lname,
+      role,
+      start_date: new Date().toISOString()
+    });
 
     if (insertError) {
       alert(insertError.message);

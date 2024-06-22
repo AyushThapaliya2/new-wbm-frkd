@@ -1,7 +1,6 @@
+// routes/page.js
 'use client'
 import React, { useState, useEffect } from "react";
-import Navbar from '@/components/Navbar';
-import Sidebar from '@/components/Sidebar';
 import MapView from "@/components/MapView";
 import {
   calculateFillRate,
@@ -10,7 +9,16 @@ import {
   binsDueForPickup,
   findLowFillRateBins,
 } from "@/utils/binPredictions";
-import { supabase } from '@/lib/supabaseClient';
+import {
+  fetchBinDevices,
+  fetchHistoricalData,
+  fetchRecentRoutes,
+  createRoute,
+  updateRouteStatus,
+  deleteRoute
+} from '@/lib/supabaseClient';
+import {  helperToConvertLevelToPercentage, pickDevicesWithIssues } from '@/utils/helperFunctions';
+import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
@@ -41,7 +49,7 @@ const Routes = () => {
     if (!session) {
       router.push('/login');
     }
-  }, []);
+  }, [session, router]);
 
   useEffect(() => {
     if (predictedDevices.length > 0 && allDevices.length > 0) {
@@ -53,15 +61,8 @@ const Routes = () => {
   }, [predictedDevices, allDevices]);
 
   const getDevices = async () => {
-    const { data, error } = await supabase
-      .from('devices')
-      .select('*')
-      .eq('is_registered', true)
-      .order('unique_id');
-
-    if (error) {
-      console.error('Error fetching devices:', error);
-    } else {
+    const data = await fetchBinDevices();
+    if (data.length > 0) {
       let tmpAll = helperToConvertLevelToPercentage(data);
       setAllDevices(tmpAll);
       const filteredDevices = pickDevicesWithIssues(tmpAll);
@@ -70,15 +71,8 @@ const Routes = () => {
   };
 
   const getDevicesHistorical = async () => {
-    const { data, error } = await supabase
-      .from('historical')
-      .select('*');
-
-    if (error) {
-      console.error('Error fetching historical data:', error);
-    } else {
-      setHistorical(data);
-    }
+    const data = await fetchHistoricalData();
+    setHistorical(data);
   };
 
   useEffect(() => {
@@ -112,70 +106,61 @@ const Routes = () => {
     getDevicesHistorical();
     getRoutes(); // Fetch routes here
 
-    const deviceSubscription = supabase
-      .channel('public:devices')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'devices' }, (payload) => {
-        console.log('Device change received!', payload);
-        switch (payload.eventType) {
-          case 'INSERT':
-            setDevices((prevDevices) => [...prevDevices, payload.new]);
-            break;
-          case 'UPDATE':
-            setDevices((prevDevices) =>
-              prevDevices.map((device) =>
-                device.id === payload.new.id ? payload.new : device
-              )
-            );
-            break;
-          case 'DELETE':
-            setDevices((prevDevices) =>
-              prevDevices.filter((device) => device.id !== payload.old.id)
-            );
-            break;
-          default:
-            break;
-        }
-      })
-      .subscribe();
+    const unsubscribeDevice = subscribeToTableChanges('devices', (payload) => {
+      console.log('Device change received!', payload);
+      switch (payload.eventType) {
+        case 'INSERT':
+          setDevices((prevDevices) => [...prevDevices, payload.new]);
+          break;
+        case 'UPDATE':
+          setDevices((prevDevices) =>
+            prevDevices.map((device) =>
+              device.id === payload.new.id ? payload.new : device
+            )
+          );
+          break;
+        case 'DELETE':
+          setDevices((prevDevices) =>
+            prevDevices.filter((device) => device.id !== payload.old.id)
+          );
+          break;
+        default:
+          break;
+      }
+    });
 
-    const historicalSubscription = supabase
-      .channel('public:historical')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'historical' }, (payload) => {
-        console.log('Historical change received!', payload);
-        switch (payload.eventType) {
-          case 'INSERT':
-            setHistorical((prevHistorical) => [...prevHistorical, payload.new]);
-            break;
-          case 'UPDATE':
-            setHistorical((prevHistorical) =>
-              prevHistorical.map((entry) =>
-                entry.id === payload.new.id ? payload.new : entry
-              )
-            );
-            break;
-          case 'DELETE':
-            setHistorical((prevHistorical) =>
-              prevHistorical.filter((entry) => entry.id !== payload.old.id)
-            );
-            break;
-          default:
-            break;
-        }
-      })
-      .subscribe();
+    const unsubscribeHistorical = subscribeToTableChanges('historical', (payload) => {
+      console.log('Historical change received!', payload);
+      switch (payload.eventType) {
+        case 'INSERT':
+          setHistorical((prevHistorical) => [...prevHistorical, payload.new]);
+          break;
+        case 'UPDATE':
+          setHistorical((prevHistorical) =>
+            prevHistorical.map((entry) =>
+              entry.id === payload.new.id ? payload.new : entry
+            )
+          );
+          break;
+        case 'DELETE':
+          setHistorical((prevHistorical) =>
+            prevHistorical.filter((entry) => entry.id !== payload.old.id)
+          );
+          break;
+        default:
+          break;
+      }
+    });
 
-    const routeSubscription = supabase
-      .channel('public:routes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'routes' }, (payload) => {
-        console.log('Route change received!', payload);
-        getRoutes();
-      })
-      .subscribe();
+    const unsubscribeRoutes = subscribeToTableChanges('routes', () => {
+      console.log('Route change received!');
+      getRoutes();
+    });
 
     return () => {
-      supabase.removeChannel(deviceSubscription);
-      supabase.removeChannel(historicalSubscription);
-      supabase.removeChannel(routeSubscription);
+      unsubscribeDevice();
+      unsubscribeHistorical();
+      unsubscribeRoutes();
     };
   }, []);
 
@@ -261,80 +246,49 @@ const Routes = () => {
     });
   };
 
-  const createRoute = async () => {
+  const createNewRoute = async () => {
     if (!devicesToWorkOn.length) return;
 
-    const { data, error } = await supabase
-      .from('routes')
-      .insert([
-        {
-          employeeid: 1, // Replace with actual user ID
-          deviceids: devicesToWorkOn.map((device) => device.unique_id),
-          emptybin: filters.emptyBin,
-          changebattery: filters.changeBattery,
-          status: 'pending',
-          timestamp: new Date(),
-        },
-      ]);
+    const route = {
+      employeeid: 1, // Replace with actual user ID
+      deviceids: devicesToWorkOn.map((device) => device.unique_id),
+      emptybin: filters.emptyBin,
+      changebattery: filters.changeBattery,
+      status: 'pending',
+      timestamp: new Date(),
+    };
 
-    if (error) {
-      console.error('Error creating route:', error);
-    } else {
+    const { data, error } = await createRoute(route);
+    if (!error) {
       console.log('Route created successfully:', data);
       getRoutes();
     }
   };
 
   const getRoutes = async () => {
-    const { data, error } = await supabase
-      .from('routes')
-      .select('id, employeeid, deviceids, emptybin, changebattery, status, started, finished, timestamp')
-      .order('timestamp', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching routes:', error);
-    } else {
-      setAllRoutes(data);
-    }
+    const data = await fetchRecentRoutes();
+    setAllRoutes(data);
   };
 
   const startRoute = async (id) => {
-    const { data, error } = await supabase
-      .from('routes')
-      .update({ status: 'started', started: new Date() })
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error starting route:', error);
-    } else {
+    const { data, error } = await updateRouteStatus(id, 'started', 'started');
+    if (!error) {
       console.log('Route started:', data);
       getRoutes();
     }
   };
 
   const finishRoute = async (id) => {
-    const { data, error } = await supabase
-      .from('routes')
-      .update({ status: 'finished', finished: new Date() })
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error finishing route:', error);
-    } else {
+    const { data, error } = await updateRouteStatus(id, 'finished', 'finished');
+    if (!error) {
       console.log('Route finished:', data);
       getRoutes();
     }
   };
 
-  const deleteRoute = async (id) => {
-    const { data, error } = await supabase
-      .from('routes')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error deleting route:', error);
-    } else {
+  const deleteRouteById = async (id) => {
+    const { data, error } = await deleteRoute(id);
+    if (!error) {
       console.log('Route deleted:', data);
       getRoutes();
     }
@@ -422,7 +376,7 @@ const Routes = () => {
                 <span>{estimatedTime}</span>
               </div>
               <button
-                onClick={createRoute}
+                onClick={createNewRoute}
                 className="bg-blue-500 text-white px-4 py-2 rounded"
               >
                 Start Route
@@ -487,7 +441,7 @@ const Routes = () => {
                           </button>
                         )}
                         {route.status === "finished" && (
-                          <button onClick={() => deleteRoute(route.id)} className="bg-red-500 text-white px-2 py-1 rounded">
+                          <button onClick={() => deleteRouteById(route.id)} className="bg-red-500 text-white px-2 py-1 rounded">
                             Delete
                           </button>
                         )}
@@ -509,23 +463,3 @@ const Routes = () => {
 };  
 
 export default Routes;
-
-const helperToConvertLevelToPercentage = (devices) => {
-  let tmpDevices = devices.map((device) => {
-    let distanceInCM = device.level;
-    let binHeight = device.bin_height;
-    let trashHeight = binHeight - distanceInCM;
-    device.level = parseInt((trashHeight * 100) / binHeight);
-    device.lat = parseFloat(device.lat);
-    device.lng = parseFloat(device.lng);
-    return device;
-  });
-  return tmpDevices;
-};
-
-const pickDevicesWithIssues = (devices) => {
-  let tmpDevices = devices.filter((device) => {
-    return device.level >= 80 || device.battery <= 25;
-  });
-  return tmpDevices;
-};

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabaseClient';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -17,6 +16,9 @@ import {
 import 'chartjs-adapter-date-fns';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { fetchBinDevices, fetchFeedbacks, fetchHistoricalData, fetchRecentRoutes } from '@/lib/supabaseClient';
+import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
+import { FaRoute } from 'react-icons/fa';
 
 ChartJS.register(
   CategoryScale,
@@ -30,14 +32,13 @@ ChartJS.register(
 );
 
 export default function Home() {
-  const { session } = useAuth();
+  const { session, isAdmin } = useAuth();
   const router = useRouter();
   const [summary, setSummary] = useState({});
   const [recentFeedback, setRecentFeedback] = useState([]);
   const [recentRoutes, setRecentRoutes] = useState([]);
   const [chartData, setChartData] = useState({ labels: [], datasets: [] });
-  const secretToken = process.env.SECRET_TOKEN;
-    console.log(process.env.NEXT_PUBLIC_SECRET_TOKEN);
+
   useEffect(() => {
     if (!session) {
       router.push('/login');
@@ -59,43 +60,15 @@ export default function Home() {
   useEffect(() => {
     const fetchSummary = async () => {
       try {
-        const { data: devices, error: devicesError } = await supabase
-          .from('devices')
-          .select('*')
-          .eq('is_registered', true);
-
-        if (devicesError) {
-          console.error(devicesError);
-          return;
-        }
-
+        const devices = await fetchBinDevices();
         const convertedDevices = helperToConvertLevelToPercentage(devices);
 
         const totalDevices = convertedDevices.length;
         const fullBins = convertedDevices.filter(device => device.level >= 80).length;
         const lowBatteryBins = convertedDevices.filter(device => device.battery <= 20).length;
 
-        const { data: feedback, error: feedbackError } = await supabase
-          .from('feedbacks')
-          .select('*')
-          .order('timestamp', { ascending: false })
-          .limit(5);
-
-        if (feedbackError) {
-          console.error(feedbackError);
-          return;
-        }
-
-        const { data: routes, error: routesError } = await supabase
-          .from('routes')
-          .select('*')
-          .order('timestamp', { ascending: false })
-          .limit(5);
-
-        if (routesError) {
-          console.error(routesError);
-          return;
-        }
+        const feedback = await fetchFeedbacks();
+        const routes = await fetchRecentRoutes();
 
         setSummary({
           totalDevices,
@@ -103,7 +76,7 @@ export default function Home() {
           lowBatteryBins
         });
 
-        setRecentFeedback(feedback || []);
+        setRecentFeedback(feedback.slice(0, 5) || []);
         setRecentRoutes(routes || []);
       } catch (error) {
         console.error('Error fetching summary:', error);
@@ -112,26 +85,20 @@ export default function Home() {
 
     const fetchChartData = async () => {
       try {
-        const { data, error } = await supabase
-          .from('historical')
-          .select('saved_time, level_in_percents')
-          .order('saved_time', { ascending: true });
+        const data = await fetchHistoricalData();
+        const labels = data.map(item => new Date(item.saved_time));
+        const dataset = {
+          label: 'Bin Levels Over Time',
+          data: data.map(item => item.level_in_percents),
+          borderColor: 'rgba(75, 192, 192, 0.5)',
+          backgroundColor: 'rgba(75, 192, 192, 0.5)',
+          fill: false
+        };
 
-        if (!error) {
-          const labels = data.map(item => new Date(item.saved_time));
-          const dataset = {
-            label: 'Bin Levels Over Time',
-            data: data.map(item => item.level_in_percents),
-            borderColor: 'rgba(75, 192, 192, 0.5)',
-            backgroundColor: 'rgba(75, 192, 192, 0.5)',
-            fill: false
-          };
-
-          setChartData({
-            labels,
-            datasets: [dataset]
-          });
-        }
+        setChartData({
+          labels,
+          datasets: [dataset]
+        });
       } catch (error) {
         console.error('Error fetching chart data:', error);
       }
@@ -139,6 +106,18 @@ export default function Home() {
 
     fetchSummary();
     fetchChartData();
+
+    // Set up real-time subscriptions
+    const unsubscribeDevices = subscribeToTableChanges('devices', fetchSummary);
+    const unsubscribeFeedbacks = subscribeToTableChanges('feedbacks', fetchSummary);
+    const unsubscribeHistorical = subscribeToTableChanges('historical', fetchChartData);
+
+    // Cleanup function
+    return () => {
+      unsubscribeDevices();
+      unsubscribeFeedbacks();
+      unsubscribeHistorical();
+    };
   }, []);
 
   const chartOptions = {
@@ -155,33 +134,69 @@ export default function Home() {
   };
 
   return (
-    <div className="mx-auto p-6 bg-white rounded-lg shadow-md text-gray-800 font-sans">
-      <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
+    <div className="mx-auto p-6 bg-gray-100 rounded-lg shadow-md text-gray-800 font-sans">
+      {/* <h1 className="text-3xl font-bold mb-6">Dashboard</h1> */}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div className="bg-blue-100 p-4 rounded-lg shadow-md">
-          <h2 className="text-xl font-bold">Total Devices</h2>
-          <p className="text-2xl">{summary.totalDevices}</p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-blue-100 p-4 rounded-lg shadow-md flex items-center">
+          <div>
+            <h2 className="text-xl font-bold">Total Devices</h2>
+            <p className="text-2xl">{summary.totalDevices}</p>
+          </div>
         </div>
-        <div className="bg-red-100 p-4 rounded-lg shadow-md">
-          <h2 className="text-xl font-bold">Full Bins</h2>
-          <p className="text-2xl">{summary.fullBins}</p>
+        <div className="bg-red-100 p-4 rounded-lg shadow-md flex items-center">
+          <div>
+            <h2 className="text-xl font-bold">Full Bins</h2>
+            <p className="text-2xl">{summary.fullBins}</p>
+          </div>
         </div>
-        <div className="bg-yellow-100 p-4 rounded-lg shadow-md">
-          <h2 className="text-xl font-bold">Low Battery Bins</h2>
-          <p className="text-2xl">{summary.lowBatteryBins}</p>
+        <div className="bg-yellow-100 p-4 rounded-lg shadow-md flex items-center">
+          <div>
+            <h2 className="text-xl font-bold">Low Battery Bins</h2>
+            <p className="text-2xl">{summary.lowBatteryBins}</p>
+          </div>
         </div>
       </div>
 
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-4">Bin Levels Over Time</h2>
-        <div className="relative h-96">
-          <Line data={chartData} options={chartOptions} />
+      {isAdmin ? (
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold mb-4">Bin Levels Over Time</h2>
+          <div className="relative h-96">
+            <Line data={chartData} options={chartOptions} />
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="mb-6">
+          {/* <h2 className="text-2xl font-bold mb-4">Routes Availability</h2> */}
+          <div className="flex justify-center">
+            <div
+              className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 cursor-pointer transform hover:-translate-y-1"
+              onClick={() => router.push('/routes')}
+            >
+              <div className="flex items-center justify-center mb-4">
+                <FaRoute className="text-6xl text-blue-500" />
+              </div>
+              {summary.fullBins > 0 || summary.lowBatteryBins > 0 ? (
+                <div>
+                  <h3 className="text-2xl font-bold mb-2 text-center text-green-600">Routes Available</h3>
+                  <p className="text-lg text-center text-gray-700">There are bins that need to be emptied or have low battery. Please check your routes.</p>
+                </div>
+              ) : (
+                <div>
+                  <h3 className="text-2xl font-bold mb-2 text-center text-red-600">No Routes Available</h3>
+                  <p className="text-lg text-center text-gray-700">All bins are in good condition. No routes to be done at this time.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-gray-100 p-4 rounded-lg shadow-md">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div
+          className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 cursor-pointer transform hover:-translate-y-1"
+          onClick={() => router.push('/feedback')}
+        >
           <h2 className="text-2xl font-bold mb-4">Recent Feedback</h2>
           <ul>
             {recentFeedback.map(feedback => (
@@ -194,7 +209,10 @@ export default function Home() {
           </ul>
         </div>
 
-        <div className="bg-gray-100 p-4 rounded-lg shadow-md">
+        <div
+          className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 cursor-pointer transform hover:-translate-y-1"
+          onClick={() => router.push('/routes')}
+        >
           <h2 className="text-2xl font-bold mb-4">Recent Routes</h2>
           <ul>
             {recentRoutes.map(route => (

@@ -1,34 +1,14 @@
+// waste-bins/page.js
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Navbar from '@/components/Navbar';
-import Sidebar from '@/components/Sidebar';
 import MapView from '@/components/MapView';
 import ListView from '@/components/ListView';
-import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-
-const Legend = () => (
-  <div className="flex flex-col space-y-2 p-4">
-    <div className="flex items-center">
-      <span className="w-4 h-4 bg-purple-500 inline-block mr-2"></span>
-      <span>Full bin + low battery</span>
-    </div>
-    <div className="flex items-center">
-      <span className="w-4 h-4 bg-red-500 inline-block mr-2"></span>
-      <span>Full bin</span>
-    </div>
-    <div className="flex items-center">
-      <span className="w-4 h-4 bg-orange-300 inline-block mr-2"></span>
-      <span>Low battery</span>
-    </div>
-    <div className="flex items-center">
-      <span className="w-4 h-4 bg-green-300 inline-block mr-2"></span>
-      <span>No issues</span>
-    </div>
-  </div>
-);
+import { fetchBinDevices } from '@/lib/supabaseClient';
+import { helperToConvertLevelToPercentage } from '@/utils/helperFunctions';
+import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
 
 export default function BinView() {
   const { session } = useAuth();
@@ -38,53 +18,28 @@ export default function BinView() {
   console.log(devices);
 
   useEffect(() => {
-    if(!session){
+    if (!session) {
       router.push('/login');
     }
-  
-
-  }, [])
+  }, [session, router]);
 
   useEffect(() => {
-    fetchBinDevices();
+    const getDevices = async () => {
+      const data = await fetchBinDevices();
+      setDevices(helperToConvertLevelToPercentage(data));
+    };
 
-    const subscription = supabase
-      .channel('public:devices')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'devices' }, (payload) => {
-        console.log('Change received!', payload);
-        fetchBinDevices();
-      })
-      .subscribe();
+    getDevices();
+
+    const unsubscribe = subscribeToTableChanges('devices', (payload) => {
+      console.log('Change received!', payload);
+      getDevices();
+    });
 
     return () => {
-      supabase.removeChannel(subscription);
+      unsubscribe();
     };
   }, []);
-
-  const fetchBinDevices = async () => {
-    const { data, error } = await supabase
-      .from('devices')
-      .select('*')
-      .eq('is_registered', true);
-
-    if (error) {
-      console.error(error);
-    } else {
-      setDevices(helperToConvertLevelToPercentage(data));
-    }
-  };
-
-  const helperToConvertLevelToPercentage = (devices) => {
-    return devices.map((device) => {
-      let distanceInCM = device.level;
-      let binHeight = device.bin_height;
-      let trashHeight = binHeight - distanceInCM;
-      device.level = parseInt((trashHeight * 100) / binHeight);
-      device.lat = parseFloat(device.lat);
-      device.lng = parseFloat(device.lng);
-      return device;
-    });
-  };
 
   const mapListToggle = () => {
     if (view === 'map') {

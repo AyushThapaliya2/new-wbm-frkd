@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../lib/supabaseClient';
 import bcrypt from 'bcryptjs';
 import Link from 'next/link';
 import { useAuth } from '../../context/AuthContext';
+import { fetchUserByEmail } from '../../lib/supabaseClient';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -15,17 +15,13 @@ export default function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    const { data: users, error } = await supabase
-      .from('users')
-      .select('id, email, password')
-      .eq('email', email);
+    const user = await fetchUserByEmail(email);
 
-    if (error || users.length === 0) {
+    if (!user) {
       alert('Invalid email or password');
       return;
     }
 
-    const user = users[0];
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
