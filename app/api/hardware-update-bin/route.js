@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabaseClient';
 
 export const POST = async (req) => {
   const body = await req.json();
-  const { token, unique_id, battery, level, reception } = body;
+  const { token, unique_id, battery, level, reception, temp, humidity } = body;
   const secretToken = process.env.SECRET_TOKEN;
   
   if (token !== secretToken) {
@@ -18,6 +18,8 @@ export const POST = async (req) => {
   if (battery !== undefined) updateFields.battery = battery;
   if (level !== undefined) updateFields.level = level;
   if (reception !== undefined) updateFields.reception = reception;
+  if (temp !== undefined) updateFields.temp = temp;
+  if (humidity !== undefined) updateFields.humidity = humidity;
   updateFields.timestamp = new Date();
 
   if (Object.keys(updateFields).length === 0) {
@@ -45,7 +47,9 @@ export const POST = async (req) => {
           level: level,
           reception: reception,
           timestamp: new Date(),
-          is_registered: false 
+          is_registered: false,
+          temp: temp,
+          humidity: humidity
         })
         .select() // Use select() to return the inserted row
         .single();
