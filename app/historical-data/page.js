@@ -322,9 +322,9 @@ function Data() {
           ))}
         </div>
       </div>
-      <button className="px-4 py-2 border border-gray-800 rounded text-lg text-white bg-red-600 shadow-md transition duration-300" onClick={clearHistorical}>
+      {/* <button className="px-4 py-2 border border-gray-800 rounded text-lg text-white bg-red-600 shadow-md transition duration-300" onClick={clearHistorical}>
         Clear Historical Data
-      </button>
+      </button> */}
     </div>
   );
 }
