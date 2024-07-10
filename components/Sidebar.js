@@ -12,41 +12,57 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
         Close
       </button>
       <ul className="mt-4">
-        <li className="flex items-center p-4 border-b border-gray-600">
-          <FaHome className="mr-2" />
-          <Link href="/" onClick={toggleSidebar}>Home</Link>
-        </li>
-        <li className="flex items-center p-4 border-b border-gray-600">
-          <FaTrash className="mr-2" />
-          <Link href="/waste-bins" onClick={toggleSidebar}>Bins</Link>
-        </li>
-        <li className="flex items-center p-4 border-b border-gray-600">
-          <FaSun className="mr-2" />
-          <Link href="/weather-sensors" onClick={toggleSidebar}>Weather Sensors</Link>
-        </li>
-        <li className="flex items-center p-4 border-b border-gray-600">
-          <FaRoute className="mr-2" />
-          <Link href="/routes" onClick={toggleSidebar}>Routes</Link>
-        </li>
-        <li className="flex items-center p-4 border-b border-gray-600">
-          <FaCommentDots className="mr-2" />
-          <Link href="/feedback" onClick={toggleSidebar}>Feedback</Link>
-        </li>
+        <Link href="/" onClick={toggleSidebar}>
+          <li className="flex items-center p-4 border-b border-gray-600 hover:bg-gray-600 transition-colors cursor-pointer group">
+            <FaHome className="mr-2" />
+            <span className="group-hover:text-white">Home</span>
+          </li>
+        </Link>
+        <Link href="/waste-bins" onClick={toggleSidebar}>
+          <li className="flex items-center p-4 border-b border-gray-600 hover:bg-gray-600 transition-colors cursor-pointer group">
+            <FaTrash className="mr-2" />
+            <span className="group-hover:text-white">Bins</span>
+          </li>
+        </Link>
+        <Link href="/weather-sensors" onClick={toggleSidebar}>
+          <li className="flex items-center p-4 border-b border-gray-600 hover:bg-gray-600 transition-colors cursor-pointer group">
+            <FaSun className="mr-2" />
+            <span className="group-hover:text-white">Weather Sensors</span>
+          </li>
+        </Link>
+        <Link href="/routes" onClick={toggleSidebar}>
+          <li className="flex items-center p-4 border-b border-gray-600 hover:bg-gray-600 transition-colors cursor-pointer group">
+            <FaRoute className="mr-2" />
+            <span className="group-hover:text-white">Routes</span>
+          </li>
+        </Link>
+        <Link href="/feedback" onClick={toggleSidebar}>
+          <li className="flex items-center p-4 border-b border-gray-600 hover:bg-gray-600 transition-colors cursor-pointer group">
+            <FaCommentDots className="mr-2" />
+            <span className="group-hover:text-white">Feedback</span>
+          </li>
+        </Link>
         {isAdmin && (
           <>
-            <li className="flex items-center p-4 border-b border-gray-600">
-              <FaDatabase className="mr-2" />
-              <Link href="/historical-data" onClick={toggleSidebar}>Data</Link>
-            </li>
-            <li className="flex items-center p-4 border-b border-gray-600">
-              <FaEdit className="mr-2" />
-              <Link href="/update-device" onClick={toggleSidebar}>Update Device</Link>
-            </li>
-            <li className="flex items-center p-4 border-b border-gray-600">
-              <FaPlus className="mr-2" />
-              <Link href="/register-device" onClick={toggleSidebar}>Register New Device</Link>
-            </li>
-
+            <Link href="/historical-data" onClick={toggleSidebar}>
+              <li className="flex items-center p-4 border-b border-gray-600 hover:bg-gray-600 transition-colors cursor-pointer group">
+                <FaDatabase className="mr-2" />
+                <span className="group-hover:text-white">Data</span>
+              </li>
+            </Link>
+            <div className="w-full h-2 bg-gray-500"></div>
+            <Link href="/update-device" onClick={toggleSidebar}>
+              <li className="flex items-center p-4 border-b border-gray-600 hover:bg-gray-600 transition-colors cursor-pointer group">
+                <FaEdit className="mr-2" />
+                <span className="group-hover:text-white">Update Device</span>
+              </li>
+            </Link>
+            <Link href="/register-device" onClick={toggleSidebar}>
+              <li className="flex items-center p-4 border-b border-gray-600 hover:bg-gray-600 transition-colors cursor-pointer group">
+                <FaPlus className="mr-2" />
+                <span className="group-hover:text-white">Register New Device</span>
+              </li>
+            </Link>
           </>
         )}
       </ul>

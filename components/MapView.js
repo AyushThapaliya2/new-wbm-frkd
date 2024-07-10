@@ -6,8 +6,25 @@ import { faBatteryQuarter, faTrash } from '@fortawesome/free-solid-svg-icons';
 const mapCenter = { lat: 34.242245312686954, lng: -118.53043313617162 };
 const mapOptions = {
   mapTypeId: 'satellite',
-  clickableIcons: true,
+  clickableIcons: false, // Disable clickable POIs
   scrollwheel: true,
+  styles: [
+    {
+      featureType: 'poi',
+      elementType: 'labels',
+      stylers: [{ visibility: 'off' }],
+    },
+    {
+      featureType: 'transit',
+      elementType: 'labels',
+      stylers: [{ visibility: 'off' }],
+    },
+    {
+      featureType: 'administrative',
+      elementType: 'labels',
+      stylers: [{ visibility: 'off' }],
+    },
+  ],
 };
 const libraries = ['places'];
 const zoomDistance = 16;
