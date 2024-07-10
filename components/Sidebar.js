@@ -38,10 +38,10 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
               <FaDatabase className="mr-2" />
               <Link href="/historical-data" onClick={toggleSidebar}>Data</Link>
             </li>
-            {/* <li className="flex items-center p-4 border-b border-gray-600">
+            <li className="flex items-center p-4 border-b border-gray-600">
               <FaEdit className="mr-2" />
               <Link href="/update-device" onClick={toggleSidebar}>Update Device</Link>
-            </li> */}
+            </li>
             <li className="flex items-center p-4 border-b border-gray-600">
               <FaPlus className="mr-2" />
               <Link href="/register-device" onClick={toggleSidebar}>Register New Device</Link>

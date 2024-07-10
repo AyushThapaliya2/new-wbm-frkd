@@ -46,6 +46,14 @@ export default function UpdateDevicesPage() {
 
   useEffect(() => {
     loadDevices(deviceType);
+
+    const unsubscribe = subscribeToTableChanges(deviceType === 'bin' ? 'devices' : 'weather_sensors', () => {
+      loadDevices(deviceType);
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, [deviceType]);
 
   useEffect(() => {

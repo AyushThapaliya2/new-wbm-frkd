@@ -86,6 +86,7 @@ export default function Home() {
     const fetchChartData = async () => {
       try {
         const data = await fetchHistoricalData();
+
         const labels = data.map(item => new Date(item.saved_time));
         const dataset = {
           label: 'Bin Levels Over Time',
@@ -94,7 +95,7 @@ export default function Home() {
           backgroundColor: 'rgba(75, 192, 192, 0.5)',
           fill: false
         };
-
+    
         setChartData({
           labels,
           datasets: [dataset]
