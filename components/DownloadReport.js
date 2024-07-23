@@ -4,6 +4,33 @@ import { jsPDF } from "jspdf";
 import JSZip from "jszip";
 import 'jspdf-autotable';
 
+const colors = [
+  "rgba(255, 99, 132, 0.5)",  // red
+  "rgba(54, 162, 235, 0.5)",  // blue
+  "rgba(255, 206, 86, 0.5)",  // yellow
+  "rgba(75, 192, 192, 0.5)",  // green
+  "rgba(153, 102, 255, 0.5)", // purple
+  "rgba(255, 159, 64, 0.5)"   // orange
+];
+
+const colorMapping = {};
+const getColorForDevice = (deviceId) => {
+  if (!colorMapping[deviceId]) {
+    const index = Object.keys(colorMapping).length % colors.length;
+    colorMapping[deviceId] = colors[index];
+  }
+  return colorMapping[deviceId];
+};
+
+const rgbaToRgb = (rgba) => {
+  const match = rgba.match(/rgba?\((\d+), (\d+), (\d+)/);
+  if (match) {
+    const [, r, g, b] = match;
+    return [parseInt(r, 10), parseInt(g, 10), parseInt(b, 10)];
+  }
+  return [0, 0, 0];
+};
+
 const DownloadReport = ({ deviceInsights, devicePings, startDate, endDate }) => {
   const handleDownload = async () => {
     const zip = new JSZip();
@@ -30,108 +57,114 @@ const DownloadReport = ({ deviceInsights, devicePings, startDate, endDate }) => 
 
     let yPos = 140;
 
-    Object.keys(deviceInsights).forEach((id, index) => {
-      const { commonAnomalies, frequentRapidChangesSummary } = deviceInsights[id];
-      if (yPos >= 260) {
-        pdf.addPage();
-        yPos = 20;
+    pdf.autoTable({
+      startY: yPos,
+      head: [['Device ID', 'Total Pings', 'Times Emptied', 'Average Fill Rate', 'Out of Range', 'Sudden Changes']],
+      body: Object.entries(deviceInsights).map(([id, insight]) => [
+        id,
+        insight.totalPings,
+        insight.emptyingEvents,
+        insight.averageFillRate.toFixed(2),
+        insight.commonAnomalies.length,
+        Object.entries(insight.frequentSuddenChangesSummary).length
+      ]),
+      theme: 'grid',
+      headStyles: {
+        fillColor: [74, 85, 104],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold'
+      },
+      margin: { top: 140 },
+      didDrawCell: (data) => {
+        if (data.column.index === 0) {
+          const id = data.cell.raw;
+          const color = getColorForDevice(id);
+          const [r, g, b] = rgbaToRgb(color);
+          pdf.setFillColor(r, g, b);
+          pdf.rect(data.cell.x - 2, data.cell.y, 2, data.cell.height, 'F');
+        }
       }
+    });
 
-      pdf.setFontSize(14);
-      pdf.text(`Device ${id} Insights:`, 15, yPos);
-      yPos += 10;
+    yPos = pdf.lastAutoTable.finalY + 10;
 
-      pdf.setFontSize(11);
-      pdf.text(`Total Pings: ${devicePings[id]}`, 15, yPos);
-      yPos += 10;
-
-      pdf.setFontSize(11);
-      pdf.text('Out of Range:', 15, yPos);
-      yPos += 5;
-      pdf.setFontSize(10);
-      pdf.autoTable({
-        startY: yPos,
-        theme: 'grid',
-        head: [['Level', 'Occurrences', 'Times']],
-        body: deviceInsights[id].commonAnomalies.map(anomaly => [anomaly.level, anomaly.occurrences, anomaly.times]),
-        margin: { left: 15, right: 15 },
-        tableWidth: 180,
-        styles: {
-          cellWidth: 'wrap',
-          fontSize: 8,
-          cellPadding: 1,
-          overflow: 'linebreak',
-        },
-        headStyles: {
-          fillColor: [74, 85, 104],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold'
-        },
-        columnStyles: {
-          0: { cellWidth: 40 },
-          1: { cellWidth: 30 },
-          2: { cellWidth: 110 }
-        },
-      });
-      yPos = pdf.lastAutoTable.finalY + 10;
-
+    Object.keys(deviceInsights).forEach((id) => {
+      const { commonAnomalies, frequentSuddenChangesSummary } = deviceInsights[id];
       if (yPos >= pageHeight - 20) {
         pdf.addPage();
         yPos = 20;
       }
 
-      pdf.text('Rapid Changes:', 15, yPos);
-      yPos += 5;
-      pdf.autoTable({
-        startY: yPos,
-        theme: 'grid',
-        head: [['Change', 'Details']],
-        body: Object.entries(deviceInsights[id].frequentRapidChangesSummary).map(([change, times]) => [change, times.join(", ")]),
-        margin: { left: 15, right: 15 },
-        tableWidth: 180,
-        styles: {
-          cellWidth: 'wrap',
-          fontSize: 8,
-          cellPadding: 1,
-          overflow: 'linebreak',
-        },
-        headStyles: {
-          fillColor: [74, 85, 104],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold'
-        },
-        columnStyles: {
-          0: { cellWidth: 60 },
-          1: { cellWidth: 120 }
-        },
-      });
-      yPos = pdf.lastAutoTable.finalY + 10;
+      if (commonAnomalies.length > 0) {
+        pdf.setFontSize(14);
+        pdf.text(`Device ${id} Out of Range Details:`, 15, yPos);
+        yPos += 10;
+        pdf.autoTable({
+          startY: yPos,
+          head: [['Level', 'Occurrences', 'Times']],
+          body: commonAnomalies.map(anomaly => [anomaly.level, anomaly.occurrences, anomaly.times]),
+          theme: 'grid',
+          headStyles: {
+            fillColor: [74, 85, 104],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold'
+          },
+          margin: { left: 15, right: 15 },
+          tableWidth: 180,
+          styles: {
+            cellWidth: 'wrap',
+            fontSize: 8,
+            cellPadding: 1,
+            overflow: 'linebreak',
+          },
+        });
+        yPos = pdf.lastAutoTable.finalY + 10;
+      }
+
+      if (Object.entries(frequentSuddenChangesSummary).length > 0) {
+        pdf.setFontSize(14);
+        pdf.text(`Device ${id} Sudden Changes Details:`, 15, yPos);
+        yPos += 10;
+        pdf.autoTable({
+          startY: yPos,
+          head: [['Change', 'Details']],
+          body: Object.entries(frequentSuddenChangesSummary).map(([change, times]) => [change, times.join(", ")]),
+          theme: 'grid',
+          headStyles: {
+            fillColor: [74, 85, 104],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold'
+          },
+          margin: { left: 15, right: 15 },
+          tableWidth: 180,
+          styles: {
+            cellWidth: 'wrap',
+            fontSize: 8,
+            cellPadding: 1,
+            overflow: 'linebreak',
+          },
+        });
+        yPos = pdf.lastAutoTable.finalY + 10;
+      }
 
       pdf.setFontSize(10);
       pdf.text(`Page ${pdf.internal.getNumberOfPages()}`, 105, 287, null, null, 'center');
-
-      const anomaliesData = commonAnomalies.map(anomaly => ({
-        deviceId: id,
-        type: 'Out of Range',
-        detail: anomaly.level,
-        occurrences: anomaly.occurrences,
-        times: anomaly.times
-      }));
-      const changesData = Object.entries(frequentRapidChangesSummary).map(([change, times]) => ({
-        deviceId: id,
-        type: 'Rapid Change',
-        detail: change,
-        occurrences: times.length,
-        times: times.join(", ")
-      }));
-      const combinedData = [...anomaliesData, ...changesData];
-      const csvRows = ['Device ID,Type,Detail,Occurrences,Times'];
-      combinedData.forEach(item => {
-        csvRows.push(`${item.deviceId},${item.type},${item.detail},${item.occurrences},${item.times}`);
-      });
-      const csvString = csvRows.join('\n');
-      zip.file(`Device_${id}_Insights_${currentDate}.csv`, csvString);
     });
+
+    const csvRows = [
+      ['Device ID', 'Total Pings', 'Times Emptied', 'Average Fill Rate', 'Out of Range', 'Sudden Changes'],
+      ...Object.entries(deviceInsights).map(([id, insight]) => [
+        id,
+        insight.totalPings,
+        insight.emptyingEvents,
+        insight.averageFillRate.toFixed(2),
+        insight.commonAnomalies.length,
+        Object.entries(insight.frequentSuddenChangesSummary).length
+      ])
+    ];
+
+    const csvString = csvRows.map(row => row.join(',')).join('\n');
+    zip.file(`WBM_Report_${currentDate}.csv`, csvString);
 
     const pdfBlob = pdf.output("blob");
     zip.file("WBM_Manager's_Report.pdf", pdfBlob);

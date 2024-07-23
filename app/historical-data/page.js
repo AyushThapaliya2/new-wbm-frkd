@@ -1,9 +1,10 @@
 'use client';
 import React, { useState, useEffect } from "react";
-import { fetchHistoricalData, clearHistoricalData } from '@/lib/supabaseClient';
+import { fetchHistoricalData, clearHistoricalData, fetchEmptyEvents } from '@/lib/supabaseClient';
 import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
 import ChartComponent from '@/components/ChartComponent';
 import DownloadReport from '@/components/DownloadReport';
+import Modal from '@/components/Modal';
 
 function Data() {
   const colors = [
@@ -14,6 +15,15 @@ function Data() {
     "rgba(153, 102, 255, 0.5)", // purple
     "rgba(255, 159, 64, 0.5)"   // orange
   ];
+
+  const colorMapping = {};
+  const getColorForDevice = (deviceId) => {
+    if (!colorMapping[deviceId]) {
+      const index = Object.keys(colorMapping).length % colors.length;
+      colorMapping[deviceId] = colors[index];
+    }
+    return colorMapping[deviceId];
+  };
 
   const chartOptions = {
     scales: {
@@ -49,6 +59,7 @@ function Data() {
   };
 
   const [mockData, setHistorical] = useState([]);
+  const [emptyingEvents, setEmptyingEvents] = useState({});
   const [activeTab, setActiveTab] = useState('fillLevels');
   const [fillLevelsOverTime, setFillLevelsOverTime] = useState({
     labels: [],
@@ -60,15 +71,33 @@ function Data() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [expandedPanel, setExpandedPanel] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState("");
+  const [modalContent, setModalContent] = useState("");
 
   const togglePanel = (id) => {
     setExpandedPanel(expandedPanel === id ? null : id);
+  };
+
+  const openModal = (title, content) => {
+    setModalTitle(title);
+    setModalContent(content);
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setModalTitle("");
+    setModalContent("");
   };
 
   useEffect(() => {
     const getHistorical = async () => {
       const data = await fetchHistoricalData();
       setHistorical(data);
+
+      const emptyEvents = await fetchEmptyEvents();
+      setEmptyingEvents(emptyEvents);
 
       // Calculate start and end dates based on the fetched data
       const dates = data.map(item => new Date(item.saved_time));
@@ -120,7 +149,57 @@ function Data() {
 
   useEffect(() => {
     updateChartData();
-  }, [mockData, startDate, endDate]);
+  }, [mockData, startDate, endDate, emptyingEvents]);
+
+  const calculateAverageFillRates = (data) => {
+    const averageFillRates = {};
+
+    const groupedByDevice = data.reduce((acc, item) => {
+      if (!acc[item.unique_id]) {
+        acc[item.unique_id] = [];
+      }
+      acc[item.unique_id].push(item);
+      return acc;
+    }, {});
+
+    for (const [unique_id, records] of Object.entries(groupedByDevice)) {
+      let totalFillRate = 0;
+      let totalIntervals = 0;
+      let intervalSum = 0;
+      let intervalCount = 0;
+      let previousItem = null;
+
+      records.forEach((item) => {
+        if (previousItem) {
+          const timeDiff = (new Date(item.saved_time) - new Date(previousItem.saved_time)) / (1000 * 60 * 60); // in hours
+          const levelDiff = item.level_in_percents - previousItem.level_in_percents;
+
+          //if bin is above 20% full and drops to below 10% we can assume it was emptied. this accounts for when bins are emptied before full level (>75%)
+          if (previousItem.level_in_percents > 20 && item.level_in_percents <= 10) {
+            if (intervalCount > 0) {
+              totalFillRate += intervalSum / intervalCount;
+              totalIntervals++;
+            }
+            intervalSum = 0;
+            intervalCount = 0;
+          } else {
+            intervalSum += levelDiff / timeDiff;
+            intervalCount++;
+          }
+        }
+        previousItem = item;
+      });
+
+      if (intervalCount > 0) {
+        totalFillRate += intervalSum / intervalCount;
+        totalIntervals++;
+      }
+
+      averageFillRates[unique_id] = totalIntervals > 0 ? totalFillRate / totalIntervals : 0;
+    }
+
+    return averageFillRates;
+  };
 
   const updateChartData = () => {
     const filteredData = mockData.filter(item => {
@@ -135,9 +214,6 @@ function Data() {
         acc[item.unique_id] = { data: [], lastSavedTime: null };
       }
       const dateToSave = new Date(item.saved_time);
-      // const adjust = itemDate.getTimezoneOffset() * 60 * 1000;
-      // const dateToSave = new Date(itemDate.getTime() + adjust); //adjustment was needed for last DB, but not necessary for current DB setup
-
       acc[item.unique_id].data.push({
         ...item,
         saved_time: dateToSave
@@ -154,16 +230,18 @@ function Data() {
     const pings = {};
     const insights = {};
 
+    const averageFillRates = calculateAverageFillRates(filteredData);
+
     for (const [unique_id, { data, lastSavedTime }] of Object.entries(groupedByDevice)) {
-      const colorIndex = unique_id % colors.length;
+      const color = getColorForDevice(unique_id);
       datasets.push({
         label: `Device ${unique_id}`,
         data: data.map(item => ({
           x: item.saved_time,
           y: item.level_in_percents
         })),
-        borderColor: colors[colorIndex],
-        backgroundColor: colors[colorIndex],
+        borderColor: color,
+        backgroundColor: color,
         fill: false,
         lineTension: 0.1
       });
@@ -171,7 +249,7 @@ function Data() {
       pings[unique_id] = data.length;
 
       let anomalies = new Map();
-      let rapidChanges = [];
+      let suddenChanges = [];
       let previousItem = null;
 
       data.forEach(item => {
@@ -179,7 +257,7 @@ function Data() {
           anomalies.set(item.saved_time.toLocaleString(), `${item.level_in_percents}%`);
         }
         if (previousItem && Math.abs(previousItem.level_in_percents - item.level_in_percents) > 30) {
-          rapidChanges.push({
+          suddenChanges.push({
             from: previousItem.level_in_percents,
             to: item.level_in_percents,
             start: previousItem.saved_time.toLocaleString(),
@@ -190,10 +268,13 @@ function Data() {
       });
 
       insights[unique_id] = {
+        totalPings: data.length,
         totalAnomalies: anomalies.size,
-        totalRapidChanges: rapidChanges.length,
+        totalSuddenChanges: suddenChanges.length,
         commonAnomalies: summarizeAnomalies(anomalies),
-        frequentRapidChangesSummary: summarizeRapidChanges(rapidChanges)
+        frequentSuddenChangesSummary: summarizeSuddenChanges(suddenChanges),
+        emptyingEvents: emptyingEvents[unique_id] || 0,
+        averageFillRate: averageFillRates[unique_id]
       };
     }
 
@@ -224,7 +305,7 @@ function Data() {
     }));
   };
 
-  const summarizeRapidChanges = (changes) => {
+  const summarizeSuddenChanges = (changes) => {
     const summary = {};
     changes.forEach(change => {
       const key = `${change.from}% to ${change.to}%`;
@@ -235,6 +316,7 @@ function Data() {
     });
     return summary;
   };
+
   return (
     <div className="mx-auto my-4 p-6 bg-white rounded-lg shadow-md text-gray-800 font-sans">
       <div className="flex justify-between items-center px-5 mb-10">
@@ -251,80 +333,88 @@ function Data() {
           className="border border-gray-300 rounded px-2 py-2 text-lg"
         />
       </div>
-      <div className="flex flex-col gap-8">
-        <div className="w-full bg-gray-200 rounded-lg p-8 shadow-md">
-          <h2>Fill Levels Over Time</h2>
-          <div className="relative h-96">
-            <ChartComponent data={fillLevelsOverTime} options={chartOptions} />
-          </div>
-        </div>
-        <div className="w-full bg-gray-100 rounded-lg p-8 shadow-md">
-          <h2 className="text-2xl mb-4">Device Insights</h2>
-          <div className="flex justify-end mb-4">
-            <DownloadReport
-              deviceInsights={deviceInsights}
-              devicePings={devicePings}
-              startDate={startDate}
-              endDate={endDate}
-            />
-          </div>
-          {Object.entries(deviceInsights).map(([id, insight]) => (
-            <div key={id} className="bg-white rounded-lg p-5 shadow-md mb-5">
-              <h3 className="text-gray-800 mb-4 cursor-pointer" onClick={() => togglePanel(id)}>
-                Device {id} <span>{expandedPanel === id ? '-' : '+'}</span>
-              </h3>
-              {expandedPanel === id && (
-                <div>
-                  <div className="mb-4">
-                    <strong>Total Pings:</strong> {devicePings[id]}
-                    <h4>Out of Range</h4>
-                    <table className="w-full mt-2 mb-4">
-                      <thead>
-                        <tr>
-                          <th className="border-b border-gray-300 py-2">Level</th>
-                          <th className="border-b border-gray-300 py-2">Occurrences</th>
-                          <th className="border-b border-gray-300 py-2">Times</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {insight.commonAnomalies.map(anomaly => (
-                          <tr key={`${id}-${anomaly.level}`}>
-                            <td className="border-b border-gray-300 py-2">{anomaly.level}</td>
-                            <td className="border-b border-gray-300 py-2">{anomaly.occurrences}</td>
-                            <td className="border-b border-gray-300 py-2">{anomaly.times}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="mb-4">
-                    <h4>Rapid Changes</h4>
-                    <table className="w-full mt-2 mb-4">
-                      <thead>
-                        <tr>
-                          <th className="border-b border-gray-300 py-2">Change</th>
-                          <th className="border-b border-gray-300 py-2">Details</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.entries(insight.frequentRapidChangesSummary).map(([change, times]) => (
-                          <tr key={change}>
-                            <td className="border-b border-gray-300 py-2">{change}</td>
-                            <td className="border-b border-gray-300 py-2">{times.join(", ")}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
+      <div className="w-full bg-gray-200 rounded-lg p-8 shadow-md mb-8">
+        <h2 className="text-2xl font-semibold text-gray-700">Fill Levels Over Time</h2>
+        <div className="relative h-96">
+          <ChartComponent data={fillLevelsOverTime} options={chartOptions} />
         </div>
       </div>
-      {/* <button className="px-4 py-2 border border-gray-800 rounded text-lg text-white bg-red-600 shadow-md transition duration-300" onClick={clearHistorical}>
-        Clear Historical Data
-      </button> */}
+      <div className="flex justify-end mb-4">
+        <DownloadReport
+          deviceInsights={deviceInsights}
+          devicePings={devicePings}
+          startDate={startDate}
+          endDate={endDate}
+        />
+      </div>
+      <table className="min-w-full bg-white border border-gray-300 shadow-lg rounded-lg overflow-hidden">
+        <thead className="bg-gray-100">
+          <tr>
+            <th className="py-2 px-4 border-b">Device ID</th>
+            <th className="py-2 px-4 border-b">Total Pings</th>
+            <th className="py-2 px-4 border-b">Times Emptied</th>
+            <th className="py-2 px-4 border-b">Average Fill Rate</th>
+            <th className="py-2 px-4 border-b">Out of Range</th>
+            <th className="py-2 px-4 border-b">Sudden Changes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Object.entries(deviceInsights).map(([id, insight]) => (
+            <tr key={id} className="hover:bg-gray-50">
+              <td className="py-2 px-4 border-b text-center" style={{ borderLeft: `4px solid ${getColorForDevice(id)}` }}>{id}</td>
+              <td className="py-2 px-4 border-b text-center">{insight.totalPings}</td>
+              <td className="py-2 px-4 border-b text-center">{insight.emptyingEvents}</td>
+              <td className="py-2 px-4 border-b text-center">{insight.averageFillRate.toFixed(2)}</td>
+              <td className="py-2 px-4 border-b text-center">
+                {insight.commonAnomalies.length > 0 ? (
+                  <button
+                    onClick={() => openModal('Out of Range Details', (
+                      <ul className="list-disc list-inside">
+                        {insight.commonAnomalies.map(anomaly => (
+                          <li key={anomaly.level}>
+                            Level: {anomaly.level}, Times: {anomaly.times}
+                          </li>
+                        ))}
+                      </ul>
+                    ))}
+                    className="text-blue-600 underline"
+                  >
+                    {insight.commonAnomalies.length}
+                  </button>
+                ) : (
+                  <span className="text-gray-500">None</span>
+                )}
+              </td>
+              <td className="py-2 px-4 border-b text-center">
+                {Object.entries(insight.frequentSuddenChangesSummary).length > 0 ? (
+                  <button
+                    onClick={() => openModal('Sudden Changes Details', (
+                      <ul className="list-disc list-inside">
+                        {Object.entries(insight.frequentSuddenChangesSummary).map(([change, times]) => (
+                          <li key={change}>
+                            Change: {change}, Times: {times.join(", ")}
+                          </li>
+                        ))}
+                      </ul>
+                    ))}
+                    className="text-blue-600 underline"
+                  >
+                    {Object.entries(insight.frequentSuddenChangesSummary).length}
+                  </button>
+                ) : (
+                  <span className="text-gray-500">None</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <Modal
+        isOpen={modalOpen}
+        onClose={closeModal}
+        title={modalTitle}
+        content={modalContent}
+      />
     </div>
   );
 }
