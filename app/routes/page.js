@@ -405,7 +405,7 @@ const Routes = () => {
               <thead>
                 <tr className="border border-gray-300">
                   <th className="p-2 border border-gray-300">Route ID</th>
-                  <th className="p-2 border border-gray-300">Created By</th>
+                  {/* <th className="p-2 border border-gray-300">Created By</th> */}
                   <th className="p-2 border border-gray-300">Bin Id's</th>
                   <th className="p-2 border border-gray-300">Status</th>
                   <th className="p-2 border border-gray-300">Created at</th>
@@ -419,7 +419,7 @@ const Routes = () => {
                   allRoutes.map((route) => (
                     <tr key={route.id} className="border border-gray-300">
                       <td className="p-2 border border-gray-300">{route.id}</td>
-                      <td className="p-2 border border-gray-300">{route.employeeid}</td>
+                      {/* <td className="p-2 border border-gray-300">{route.employeeid}</td> */}
                       <td className="p-2 border border-gray-300">{route.deviceids.join(", ")}</td>
                       <td className="p-2 border border-gray-300">{route.status}</td>
                       <td className="p-2 border border-gray-300">{new Date(route.timestamp).toLocaleString()}</td>

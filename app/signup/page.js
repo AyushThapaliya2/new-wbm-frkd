@@ -12,6 +12,8 @@ export default function Signup() {
   const [fname, setFname] = useState('');
   const [lname, setLname] = useState('');
   const [role, setRole] = useState('employee'); // Default to 'employee'
+  const [adminToken, setAdminToken] = useState('');
+  const [isTokenValid, setIsTokenValid] = useState(false);
   const router = useRouter();
 
   const handleSignup = async (e) => {
@@ -24,6 +26,22 @@ export default function Signup() {
     if (emailExists) {
       alert('Email already in use. Please use a different email.');
       return;
+    }
+
+    if (role === 'admin') {
+      const res = await fetch('/api/validate-admin-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token: adminToken }),
+      });
+      const data = await res.json();
+
+      if (!data.valid) {
+        alert('Invalid admin token.');
+        return;
+      }
     }
 
     const { error: insertError } = await createUser({
@@ -40,6 +58,32 @@ export default function Signup() {
     } else {
       alert('Signup successful! You can now log in.');
       router.push('/login');
+    }
+  };
+
+  const handleRoleChange = (e) => {
+    const selectedRole = e.target.value;
+    setRole(selectedRole);
+    setAdminToken('');
+    setIsTokenValid(false);
+  };
+
+  const handleTokenChange = async (e) => {
+    const token = e.target.value;
+    setAdminToken(token);
+
+    if (token) {
+      const res = await fetch('/api/validate-admin-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token }),
+      });
+      const data = await res.json();
+      setIsTokenValid(data.valid);
+    } else {
+      setIsTokenValid(false);
     }
   };
 
@@ -100,7 +144,7 @@ export default function Signup() {
                 name="role"
                 value="employee"
                 checked={role === 'employee'}
-                onChange={(e) => setRole(e.target.value)}
+                onChange={handleRoleChange}
                 className="form-radio text-blue-600"
               />
               <span className="ml-2 text-gray-700">Employee</span>
@@ -111,14 +155,33 @@ export default function Signup() {
                 name="role"
                 value="admin"
                 checked={role === 'admin'}
-                onChange={(e) => setRole(e.target.value)}
+                onChange={handleRoleChange}
                 className="form-radio text-blue-600"
               />
               <span className="ml-2 text-gray-700">Admin</span>
             </label>
           </div>
         </div>
-        <button type="submit" className="w-full bg-blue-500 text-white p-2 rounded">Sign Up</button>
+        {role === 'admin' && (
+          <div className="mb-4">
+            <label htmlFor="adminToken" className="block text-gray-700">Admin Token</label>
+            <input
+              type="password"
+              id="adminToken"
+              value={adminToken}
+              onChange={handleTokenChange}
+              className="w-full p-2 border border-gray-300 rounded mt-1"
+              required
+            />
+          </div>
+        )}
+        <button
+          type="submit"
+          className={`w-full p-2 rounded ${role === 'admin' && !isTokenValid ? 'bg-gray-400' : 'bg-blue-500 text-white'}`}
+          disabled={role === 'admin' && !isTokenValid}
+        >
+          Sign Up
+        </button>
         <div className="mt-4 text-center">
           <p>
             Already have an account?{' '}

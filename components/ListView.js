@@ -70,11 +70,11 @@ function ListView({ devices, deviceType }) {
               </>
             )}
             <th className="bg-gray-600 p-2 text-white font-bold md:border md:border-gray-300 text-left block md:table-cell">Battery</th>
-            <th className="bg-gray-600 p-2 text-white font-bold md:border md:border-gray-300 text-left block md:table-cell">Last Checked</th>
+            <th className="bg-gray-600 p-2 text-white font-bold md:border md:border-gray-300 text-left block md:table-cell">Last Ping</th>
             <th className="bg-gray-600 p-2 text-white font-bold md:border md:border-gray-300 text-left block md:table-cell">Reception</th>
             <th className="bg-gray-600 p-2 text-white font-bold md:border md:border-gray-300 text-left block md:table-cell">Temperature</th>
             <th className="bg-gray-600 p-2 text-white font-bold md:border md:border-gray-300 text-left block md:table-cell">Humidity</th>
-            <th className="bg-gray-600 p-2 text-white font-bold md:border md:border-gray-300 text-left block md:table-cell">Controls</th>
+            {/* <th className="bg-gray-600 p-2 text-white font-bold md:border md:border-gray-300 text-left block md:table-cell">Controls</th> */}
           </tr>
         </thead>
         <tbody className="block md:table-row-group">
@@ -98,10 +98,10 @@ function ListView({ devices, deviceType }) {
               <td className="p-2 md:border md:border-gray-400 text-left block md:table-cell">{device.reception}</td>
               <td className="p-2 md:border md:border-gray-400 text-left block md:table-cell">{device.temp}</td>
               <td className="p-2 md:border md:border-gray-400 text-left block md:table-cell">{device.humidity}</td>
-              <td className="p-2 md:border md:border-gray-400 text-left block md:table-cell">
+              {/* <td className="p-2 md:border md:border-gray-400 text-left block md:table-cell">
                 <button className="bg-blue-500 text-white px-4 py-2">Submit Feedback</button>
                 <button className="bg-green-500 text-white px-4 py-2">View Historical Data</button>
-              </td>
+              </td> */}
             </tr>
           ))}
         </tbody>

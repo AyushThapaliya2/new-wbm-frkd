@@ -1,13 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Line } from 'react-chartjs-2';
+import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
-  PointElement,
-  LineElement,
+  BarElement,
   Title,
   Tooltip,
   Legend,
@@ -23,8 +22,7 @@ import { FaRoute } from 'react-icons/fa';
 ChartJS.register(
   CategoryScale,
   LinearScale,
-  PointElement,
-  LineElement,
+  BarElement,
   Title,
   Tooltip,
   Legend,
@@ -91,9 +89,9 @@ export default function Home() {
         const dataset = {
           label: 'Bin Levels Over Time',
           data: data.map(item => item.level_in_percents),
-          borderColor: 'rgba(75, 192, 192, 0.5)',
-          backgroundColor: 'rgba(75, 192, 192, 0.5)',
-          fill: false
+          backgroundColor: 'rgba(75, 192, 192, 0.2)', // Semi-transparent color for overlaps
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1
         };
     
         setChartData({
@@ -131,7 +129,8 @@ export default function Home() {
       }
     },
     responsive: true,
-    maintainAspectRatio: false
+    maintainAspectRatio: false,
+    onClick: () => router.push('/historical-data') // Redirect to historical data page on click
   };
 
   return (
@@ -163,7 +162,7 @@ export default function Home() {
         <div className="mb-6">
           <h2 className="text-2xl font-bold mb-4">Bin Levels Over Time</h2>
           <div className="relative h-96">
-            <Line data={chartData} options={chartOptions} />
+            <Bar data={chartData} options={chartOptions} />
           </div>
         </div>
       ) : (
