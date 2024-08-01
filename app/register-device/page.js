@@ -3,7 +3,7 @@
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { fetchUserDetails, fetchNewBinDevices, fetchNewWeatherDevices, updateDeviceRegistration } from '@/lib/supabaseClient';
+import { fetchUserDetails, fetchNewBinDevices, fetchNewWeatherDevices, updateDeviceRegistration } from '@/lib/dataProvider';
 import dynamic from 'next/dynamic';
 import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
 import { FaTrash, FaSun } from 'react-icons/fa';
@@ -27,6 +27,7 @@ export default function RegisterDevicesPage() {
     if (!session) {
       router.push('/login');
     } else {
+      router.push('/register-device');
       fetchUserDetails(session.user.id).then(data => {
         if (!data) router.push('/login');
       });

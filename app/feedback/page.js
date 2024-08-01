@@ -3,7 +3,7 @@
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { fetchUserDetails, fetchBinDevices, fetchWeatherDevices, fetchFeedbacks, addFeedback } from '@/lib/supabaseClient';
+import { fetchUserDetails, fetchBinDevices, fetchWeatherDevices, fetchFeedbacks, addFeedback } from '@/lib/dataProvider';
 import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
 import { FaTrash, FaSun } from 'react-icons/fa';
 
@@ -29,6 +29,7 @@ export default function FeedbackPage() {
     if (!session) {
       router.push('/login');
     } else {
+      router.push('/feedback');
       fetchUserDetails(session.user.id).then(data => {
         if (data) setUserDetails(data);
         setUserLoading(false);

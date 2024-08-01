@@ -15,7 +15,7 @@ import {
 import 'chartjs-adapter-date-fns';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { fetchBinDevices, fetchFeedbacks, fetchHistoricalData, fetchRecentRoutes } from '@/lib/supabaseClient';
+import { fetchBinDevices, fetchFeedbacks, fetchHistoricalData, fetchRecentRoutes } from '@/lib/dataProvider';
 import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
 import { FaRoute } from 'react-icons/fa';
 
@@ -40,6 +40,9 @@ export default function Home() {
   useEffect(() => {
     if (!session) {
       router.push('/login');
+    }
+    else{
+      router.push('/dashboard');
     }
   }, [session, router]);
 

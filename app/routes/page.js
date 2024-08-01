@@ -16,7 +16,7 @@ import {
   createRoute,
   updateRouteStatus,
   deleteRoute
-} from '@/lib/supabaseClient';
+} from '@/lib/dataProvider';
 import {  helperToConvertLevelToPercentage, pickDevicesWithIssues } from '@/utils/helperFunctions';
 import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
 import { useRouter } from 'next/navigation';
@@ -48,6 +48,9 @@ const Routes = () => {
   useEffect(() => {
     if (!session) {
       router.push('/login');
+    }
+    else{
+      router.push('/routes');
     }
   }, [session, router]);
 

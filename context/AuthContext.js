@@ -1,6 +1,7 @@
+// AuthContext.js
 'use client'
 import { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import * as dataProvider from '../lib/dataProvider';
 
 const AuthContext = createContext({});
 
@@ -10,58 +11,62 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      if (session) {
-        const { user } = session;
-        const { data: userData, error } = await supabase
-          .from('users')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        if (!error && userData.role === 'admin') {
-          setIsAdmin(true);
+      const localSession = JSON.parse(localStorage.getItem('session'));
+      if (localSession) {
+        setSession(localSession);
+        const userData = await dataProvider.fetchUserDetails(localSession.user.id);
+        if (userData) {
+          console.log("WHAT:",userData.role);
+          if (userData.role === 'admin') {
+            setIsAdmin(true);
+          } else {
+            setIsAdmin(false);
+          }
         }
       }
     };
 
     getSession();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        if (session) {
-          const { user } = session;
-          const { data: userData, error } = supabase
-            .from('users')
-            .select('role')
-            .eq('id', user.id)
-            .single()
-            .then(({ data: userData, error }) => {
+    if (!process.env.NEXT_PUBLIC_USE_LOCAL) {
+      const { data: authListener } = dataProvider.supabase.auth.onAuthStateChange(
+        (_event, session) => {
+          setSession(session);
+          if (session) {
+            const { user } = session;
+            dataProvider.fetchUserByEmail(user.email).then(({ data: userData, error }) => {
               if (!error && userData.role === 'admin') {
                 setIsAdmin(true);
               } else {
                 setIsAdmin(false);
               }
             });
-        } else {
-          setIsAdmin(false);
+          } else {
+            setIsAdmin(false);
+          }
         }
-      }
-    );
+      );
 
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
+      return () => {
+        authListener.subscription.unsubscribe();
+      };
+    }
   }, []);
 
   const login = (user) => {
     setSession({ user });
     setIsAdmin(user.role === 'admin');
+    if (process.env.NEXT_PUBLIC_USE_LOCAL) {
+      localStorage.setItem('session', JSON.stringify({ user }));
+    }
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    if (process.env.NEXT_PUBLIC_USE_LOCAL) {
+      localStorage.removeItem('session');
+    } else {
+      await dataProvider.supabase.auth.signOut();
+    }
     setSession(null);
     setIsAdmin(false);
   };

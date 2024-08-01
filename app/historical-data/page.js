@@ -1,12 +1,16 @@
 'use client';
 import React, { useState, useEffect } from "react";
-import { fetchHistoricalData, clearHistoricalData, fetchEmptyEvents } from '@/lib/supabaseClient';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
+import { fetchHistoricalData, clearHistoricalData, fetchEmptyEvents } from '@/lib/dataProvider';
 import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
 import ChartComponent from '@/components/ChartComponent';
 import DownloadReport from '@/components/DownloadReport';
 import Modal from '@/components/Modal';
 
 function Data() {
+  const { session } = useAuth();
+  const router = useRouter();
   const colors = [
     "rgba(255, 99, 132, 0.5)",  // red
     "rgba(54, 162, 235, 0.5)",  // blue
@@ -90,6 +94,15 @@ function Data() {
     setModalTitle("");
     setModalContent("");
   };
+
+  useEffect(() => {
+    if (!session) {
+      router.push('/login');
+    }
+    else{
+      router.push('/historical-data');
+    }
+  }, [session, router]);
 
   useEffect(() => {
     const getHistorical = async () => {

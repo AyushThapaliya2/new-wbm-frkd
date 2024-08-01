@@ -3,7 +3,7 @@
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { fetchUserDetails, fetchBinDevices, fetchWeatherDevices, updateDeviceInfo } from '@/lib/supabaseClient';
+import { fetchUserDetails, fetchBinDevices, fetchWeatherDevices, updateDeviceInfo } from '@/lib/dataProvider';
 import dynamic from 'next/dynamic';
 import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
 import { FaTrash, FaSun } from 'react-icons/fa';
@@ -29,6 +29,7 @@ export default function UpdateDevicesPage() {
     if (!session) {
       router.push('/login');
     } else {
+      router.push('/update-device');
       fetchUserDetails(session.user.id).then(data => {
         if (!data) router.push('/login');
       });

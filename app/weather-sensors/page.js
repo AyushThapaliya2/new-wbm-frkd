@@ -6,7 +6,7 @@ import MapView from '@/components/MapView';
 import ListView from '@/components/ListView';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { fetchWeatherDevices } from '@/lib/supabaseClient';
+import { fetchWeatherDevices } from '@/lib/dataProvider';
 import { helperToConvertLevelToPercentage } from '@/utils/helperFunctions';
 import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
 
@@ -20,6 +20,9 @@ export default function BinView() {
   useEffect(() => {
     if (!session) {
       router.push('/login');
+    }
+    else{
+      router.push('/weather-sensors');
     }
   }, [session, router]);
 

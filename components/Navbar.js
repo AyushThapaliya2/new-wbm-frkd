@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { FaUser } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
+import { fetchUserDetails } from '@/lib/dataProvider';
 
 export default function Navbar({ toggleSidebar }) {
   const { session, logout } = useAuth();
@@ -12,21 +12,19 @@ export default function Navbar({ toggleSidebar }) {
   const [userDetails, setUserDetails] = useState({ fname: '' });
 
   useEffect(() => {
-    const fetchUserDetails = async () => {
+    const getUserDetails = async () => {
       if (session) {
-        const { data, error } = await supabase
-          .from('users')
-          .select('fname')
-          .eq('id', session.user.id)
-          .single();
-        if (error) {
+        try {
+          const userData = await fetchUserDetails(session.user.id);
+          if (userData) {
+            setUserDetails(userData);
+          }
+        } catch (error) {
           console.error('Error fetching user details:', error);
-        } else {
-          setUserDetails(data);
         }
       }
     };
-    fetchUserDetails();
+    getUserDetails();
   }, [session]);
 
   const handleLogout = async () => {

@@ -1,10 +1,10 @@
-import { supabase } from '@/lib/supabaseClient';
+import { updateDevice, insertNewDevice, saveToHistorical, getDeviceById } from '@/lib/dataProvider';
 
 export const POST = async (req) => {
   const body = await req.json();
   const { token, unique_id, battery, level, reception, temp, humidity } = body;
   const secretToken = process.env.SECRET_TOKEN;
-  
+
   if (token !== secretToken) {
     return new Response(JSON.stringify({ status: 0, msg: 'Unauthorized request: TOKEN INVALID' }), { status: 403 });
   }
@@ -13,7 +13,6 @@ export const POST = async (req) => {
     return new Response(JSON.stringify({ status: 0, msg: 'Invalid input: unique_id is required' }), { status: 400 });
   }
 
-  // Construct the update object dynamically
   const updateFields = {};
   if (battery !== undefined) updateFields.battery = battery;
   if (level !== undefined) updateFields.level = level;
@@ -27,76 +26,49 @@ export const POST = async (req) => {
   }
 
   try {
-    const { data: deviceData, error: deviceError } = await supabase
-      .from('devices')
-      .select('bin_height, is_registered')
-      .eq('unique_id', unique_id)
-      .maybeSingle(); // Use maybeSingle() to avoid throwing an error
-
-    if (deviceError) {
-      throw deviceError;
+    let deviceData;
+    try {
+      deviceData = await getDeviceById(unique_id);
+    } catch (error) {
+      if (error.message === 'Device not found') {
+        deviceData = null;
+      } else {
+        throw error;
+      }
     }
 
     if (!deviceData) {
-      // Insert new device with is_registered set to false
-      const { data: newDeviceData, error: newDeviceError } = await supabase
-        .from('devices')
-        .insert({ 
-          unique_id: unique_id,
-          battery: battery,
-          level: level,
-          reception: reception,
-          timestamp: new Date(),
-          is_registered: false,
-          temp: temp,
-          humidity: humidity
-        })
-        .select() // Use select() to return the inserted row
-        .single();
-
-      if (newDeviceError) {
-        throw newDeviceError;
-      }
+      const newDeviceData = await insertNewDevice({
+        unique_id: unique_id,
+        battery: battery,
+        level: level,
+        reception: reception,
+        timestamp: new Date(),
+        is_registered: false,
+        temp: temp,
+        humidity: humidity
+      });
 
       return new Response(JSON.stringify({ status: 1, msg: 'New device inserted with is_registered set to false', data: newDeviceData }), { status: 200 });
     }
 
-    // Proceed with updating the existing device
     const binHeight = deviceData.bin_height;
     const trashHeight = binHeight - level;
     const level_in_percents = parseInt((trashHeight * 100) / binHeight);
 
-    const { data: updateData, error: updateError } = await supabase
-      .from('devices')
-      .update(updateFields)
-      .eq('unique_id', unique_id)
-      .select() // Use select() to return the updated row
-      .single();
+    const updateData = await updateDevice(unique_id, updateFields);
 
-    if (updateError) {
-      throw updateError;
-    }
-
-    // Save to historical table if the device is registered
     if (deviceData.is_registered) {
-      const { data: historicalData, error: historicalError } = await supabase
-        .from('historical')
-        .insert({
-          unique_id: unique_id,
-          level_in_percents: level_in_percents,
-          saved_time: new Date(),
-        })
-        .select() // Use select() to return the inserted row
-        .single();
-
-      if (historicalError) {
-        throw historicalError;
-      }
+      await saveToHistorical({
+        unique_id: unique_id,
+        level_in_percents: level_in_percents,
+        saved_time: new Date(),
+      });
     }
 
     return new Response(JSON.stringify({ status: 1, msg: 'Device information updated and saved to historical', data: updateData }), { status: 200 });
   } catch (error) {
-    console.error(error);
+    console.error('Error processing request:', error.message);
     return new Response(JSON.stringify({ status: 0, msg: 'Internal Server Error', error: error.message }), { status: 500 });
   }
 };

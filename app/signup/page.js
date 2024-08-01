@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import bcrypt from 'bcryptjs';
 import Link from 'next/link';
-import { checkEmailExists, createUser } from '../../lib/supabaseClient';
+import { checkEmailExists, createUser } from '../../lib/dataProvider';
 
 export default function Signup() {
   const [email, setEmail] = useState('');

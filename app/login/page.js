@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import bcrypt from 'bcryptjs';
 import Link from 'next/link';
 import { useAuth } from '../../context/AuthContext';
-import { fetchUserByEmail } from '../../lib/supabaseClient';
+import { fetchUserByEmail } from '../../lib/dataProvider';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -18,14 +18,14 @@ export default function Login() {
     const user = await fetchUserByEmail(email);
 
     if (!user) {
-      alert('Invalid email or password');
+      alert('Invalid email');
       return;
     }
 
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
-      alert('Invalid email or password');
+      alert('Invalid password');
       return;
     }
 
