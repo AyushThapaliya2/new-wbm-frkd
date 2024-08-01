@@ -16,7 +16,7 @@ npm -v
 
 Both need to show their installed versions to make sure they are working properly
 
-1. Clone GitHub [repo](https://github.com/eduard0497/new_wbm_front.git)
+1. Clone GitHub [repo](https://github.com/BrianKellyCS/new-wbm.git)
 2. Open terminal (or GitBash) in the folder directory
 3. Run command:
 
