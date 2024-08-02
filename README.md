@@ -1,53 +1,52 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+**Documentation for the front end**
 
-## Getting Started
+Tech Stack:
 
-### Clone the Repository
-
-To clone the repository, run the following command in your terminal:
-```bash
-git clone http://www.github.com/BrianKellyCS/new-wbm
+```
+Next.js
 ```
 
-Navigate to the directory:
-```bash
-cd new-wbm
+_[Node](https://nodejs.org/en/download) has to be installed on the machine!!!_
+To make sure it is installed, run both commands one after another:
+
+```
+node -v
+npm -v
 ```
 
-### Install Dependencies
+Both need to show their installed versions to make sure they are working properly
 
-After cloning the repository, and navigating to the directory, install the dependencies using npm:
+1. Clone GitHub [repo](https://github.com/BrianKellyCS/new-wbm.git)
+2. Open terminal (or GitBash) in the folder directory
+3. Run command:
 
-```bash
-npm install
+```
+npm i
 ```
 
-Run the development server:
+4. Create a file called _.env.local_ in root directory of the folder
+5. Add following environmental variables to that file:
 
-```bash
+```
+NEXT_PUBLIC_GOOGLE_MAP_API_KEY={Obtain API key from Google Map Javascript SDK}
+SECRET_TOKEN={random string that is used with devices to send data}
+ADMIN_TOKEN={random string}
+
+#switch from supabase DB or local db (true for local)
+NEXT_PUBLIC_USE_LOCAL={true or false}
+
+# Supabase environment variables
+NEXT_PUBLIC_SUPABASE_URL={obtain from Supabase database under settings}
+NEXT_PUBLIC_SUPABASE_ANON_KEY={obtain from Supabase database under settings}
+SUPABASE_SERVICE_ROLE_KEY={obtain from Supabase database under settings}
+
+
+```
+
+6. Start up the front end by running the following command:
+
+```
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+If no errors occured, the front end should start automatically at link **_http://localhost:3001/_**
