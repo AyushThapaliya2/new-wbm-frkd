@@ -362,6 +362,13 @@ function Data() {
   };
 
   const downloadCSV = () => {
+    const filteredData = mockData.filter(item => {
+      const itemDate = new Date(item.saved_time);
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      return itemDate >= start && itemDate <= end;
+    });
+
     const headers = [
       "unique_id", "saved_time", "level_in_percents"
       // Add other relevant headers if necessary
@@ -369,17 +376,19 @@ function Data() {
 
     const csvData = [
       headers.join(","), // Join headers with comma
-      ...mockData.map(item =>
+      ...filteredData.map(item =>
         `${item.unique_id},${new Date(item.saved_time).toISOString()},${item.level_in_percents}`
         // Add other relevant fields if necessary
       )
     ].join("\n");
 
+    const filename = `historical_data_${startDate}_to_${endDate}.csv`;
+
     const blob = new Blob([csvData], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "historical_data.csv";
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
