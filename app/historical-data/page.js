@@ -214,6 +214,37 @@ function Data() {
     return averageFillRates;
   };
 
+  const calculateEmptyingEvents = (data) => {
+    const emptyingEvents = {};
+
+    const groupedByDevice = data.reduce((acc, item) => {
+      if (!acc[item.unique_id]) {
+        acc[item.unique_id] = [];
+      }
+      acc[item.unique_id].push(item);
+      return acc;
+    }, {});
+
+    for (const [unique_id, records] of Object.entries(groupedByDevice)) {
+      let emptyCount = 0;
+      let previousItem = null;
+
+      records.forEach((item) => {
+        if (previousItem) {
+          // If bin is above 20% full and drops to below 10%, we can assume it was emptied
+          if (previousItem.level_in_percents > 20 && item.level_in_percents <= 10) {
+            emptyCount++;
+          }
+        }
+        previousItem = item;
+      });
+
+      emptyingEvents[unique_id] = emptyCount;
+    }
+
+    return emptyingEvents;
+  };
+
   const updateChartData = () => {
     const filteredData = mockData.filter(item => {
       const itemDate = new Date(item.saved_time);
@@ -244,6 +275,7 @@ function Data() {
     const insights = {};
 
     const averageFillRates = calculateAverageFillRates(filteredData);
+    const recalculatedEmptyingEvents = calculateEmptyingEvents(filteredData);
 
     for (const [unique_id, { data, lastSavedTime }] of Object.entries(groupedByDevice)) {
       const color = getColorForDevice(unique_id);
@@ -286,7 +318,7 @@ function Data() {
         totalSuddenChanges: suddenChanges.length,
         commonAnomalies: summarizeAnomalies(anomalies),
         frequentSuddenChangesSummary: summarizeSuddenChanges(suddenChanges),
-        emptyingEvents: emptyingEvents[unique_id] || 0,
+        emptyingEvents: recalculatedEmptyingEvents[unique_id],
         averageFillRate: averageFillRates[unique_id]
       };
     }
