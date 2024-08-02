@@ -98,8 +98,7 @@ function Data() {
   useEffect(() => {
     if (!session) {
       router.push('/login');
-    }
-    else{
+    } else {
       router.push('/historical-data');
     }
   }, [session, router]);
@@ -362,6 +361,30 @@ function Data() {
     return summary;
   };
 
+  const downloadCSV = () => {
+    const headers = [
+      "unique_id", "saved_time", "level_in_percents"
+      // Add other relevant headers if necessary
+    ];
+
+    const csvData = [
+      headers.join(","), // Join headers with comma
+      ...mockData.map(item =>
+        `${item.unique_id},${new Date(item.saved_time).toISOString()},${item.level_in_percents}`
+        // Add other relevant fields if necessary
+      )
+    ].join("\n");
+
+    const blob = new Blob([csvData], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "historical_data.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
   return (
     <div className="mx-auto my-4 p-6 bg-white rounded-lg shadow-md text-gray-800 font-sans">
       <div className="flex justify-between items-center px-5 mb-10">
@@ -384,13 +407,19 @@ function Data() {
           <ChartComponent data={fillLevelsOverTime} options={chartOptions} />
         </div>
       </div>
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end mb-4 space-x-4">
         <DownloadReport
           deviceInsights={deviceInsights}
           devicePings={devicePings}
           startDate={startDate}
           endDate={endDate}
         />
+        <button
+          onClick={downloadCSV}
+          className="bg-blue-500 text-white rounded px-4 py-2"
+        >
+          Download Historical CSV
+        </button>
       </div>
       <table className="min-w-full bg-white border border-gray-300 shadow-lg rounded-lg overflow-hidden">
         <thead className="bg-gray-100">
