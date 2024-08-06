@@ -1,3 +1,8 @@
+// Utility page for Routes/page.js  
+// This page calculates fill rate of bins for the routes page, determines how many hours until full
+// Sets the predicted full time/date and then returns a list of bins that should be added to the route
+
+
 const THRESHOLD_IN_HOURS = 6;
 const MAX_FILL_PERCENT = 75;
 const LOW_FILL_RATE_LIMIT = 0.5;
@@ -211,7 +216,7 @@ export function binsDueForPickup(predictedTimes, thresholdInHours = THRESHOLD_IN
   Object.keys(predictedTimes).forEach(uniqueId => {
     
     let predictedTime = new Date(predictedTimes[uniqueId]);
-    const adjust = predictedTime.getTimezoneOffset() * 60 * 1000; // Convert minutes to milliseconds
+    const adjust = predictedTime.getTimezoneOffset() * 60 * 1000; // Convert minutes to milliseconds.
     predictedTime = new Date(predictedTime.getTime() + adjust); 
     // console.log("predicted TIME: ", predictedTime);
     currentTime = new Date(currentDateTime.getTime());

@@ -8,7 +8,7 @@ import {
   predictFullTime,
   binsDueForPickup,
   findLowFillRateBins,
-} from "@/utils/binPredictions";
+} from "@/utils/routeBinPredictions";
 import {
   fetchBinDevices,
   fetchHistoricalData,
@@ -17,7 +17,7 @@ import {
   updateRouteStatus,
   deleteRoute
 } from '@/lib/dataProvider';
-import {  helperToConvertLevelToPercentage, pickDevicesWithIssues } from '@/utils/helperFunctions';
+import {  convertLevelToPercentage, pickDevicesWithIssues } from '@/utils/deviceHelpers';
 import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -66,7 +66,7 @@ const Routes = () => {
   const getDevices = async () => {
     const data = await fetchBinDevices();
     if (data.length > 0) {
-      let tmpAll = helperToConvertLevelToPercentage(data);
+      let tmpAll = convertLevelToPercentage(data);
       setAllDevices(tmpAll);
       const filteredDevices = pickDevicesWithIssues(tmpAll);
       setDevices(filteredDevices);

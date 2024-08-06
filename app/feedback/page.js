@@ -94,6 +94,7 @@ export default function FeedbackPage() {
     }
   };
 
+  //Supabase realtime subscription and cleanup
   useEffect(() => {
     const unsubscribe = subscribeToTableChanges('feedbacks', () => {
       fetchFeedbacks().then(data => {

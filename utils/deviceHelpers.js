@@ -1,5 +1,7 @@
-// Utility functions for routes/devices pages
-export const helperToConvertLevelToPercentage = (devices) => {
+// Utility function for devices
+
+
+export const convertLevelToPercentage = (devices) => {
     let tmpDevices = devices.map((device) => {
       let distanceInCM = device.level;
       let binHeight = device.bin_height;
@@ -12,9 +14,10 @@ export const helperToConvertLevelToPercentage = (devices) => {
     return tmpDevices;
   };
   
-  export const pickDevicesWithIssues = (devices) => {
-    let tmpDevices = devices.filter((device) => {
-      return device.level >= 80 || device.battery <= 25;
-    });
-    return tmpDevices;
-  };
+
+export const pickDevicesWithIssues = (devices) => {
+  let tmpDevices = devices.filter((device) => {
+    return device.level >= 80 || device.battery <= 25;
+  });
+  return tmpDevices;
+};

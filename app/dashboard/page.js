@@ -1,33 +1,14 @@
+// dashboard/page.js
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bar } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  TimeScale
-} from 'chart.js';
-import 'chartjs-adapter-date-fns';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { fetchBinDevices, fetchFeedbacks, fetchHistoricalData, fetchRecentRoutes } from '@/lib/dataProvider';
 import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
 import { FaRoute } from 'react-icons/fa';
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  TimeScale
-);
+import ChartComponent from '@/components/ChartComponent';
+import { convertLevelToPercentage } from '@/utils/deviceHelpers'; 
 
 export default function Home() {
   const { session, isAdmin } = useAuth();
@@ -40,29 +21,16 @@ export default function Home() {
   useEffect(() => {
     if (!session) {
       router.push('/login');
-    }
-    else{
+    } else {
       router.push('/dashboard');
     }
   }, [session, router]);
-
-  const helperToConvertLevelToPercentage = (devices) => {
-    return devices.map((device) => {
-      let distanceInCM = device.level;
-      let binHeight = device.bin_height;
-      let trashHeight = binHeight - distanceInCM;
-      device.level = parseInt((trashHeight * 100) / binHeight);
-      device.lat = parseFloat(device.lat);
-      device.lng = parseFloat(device.lng);
-      return device;
-    });
-  };
 
   useEffect(() => {
     const fetchSummary = async () => {
       try {
         const devices = await fetchBinDevices();
-        const convertedDevices = helperToConvertLevelToPercentage(devices);
+        const convertedDevices = convertLevelToPercentage(devices);  
 
         const totalDevices = convertedDevices.length;
         const fullBins = convertedDevices.filter(device => device.level >= 80).length;
@@ -96,7 +64,7 @@ export default function Home() {
           borderColor: 'rgba(75, 192, 192, 1)',
           borderWidth: 1
         };
-    
+
         setChartData({
           labels,
           datasets: [dataset]
@@ -138,8 +106,6 @@ export default function Home() {
 
   return (
     <div className="mx-auto p-6 bg-gray-100 rounded-lg shadow-md text-gray-800 font-sans">
-      {/* <h1 className="text-3xl font-bold mb-6">Dashboard</h1> */}
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-blue-100 p-4 rounded-lg shadow-md flex items-center">
           <div>
@@ -165,12 +131,11 @@ export default function Home() {
         <div className="mb-6">
           <h2 className="text-2xl font-bold mb-4">Bin Levels Over Time</h2>
           <div className="relative h-96">
-            <Bar data={chartData} options={chartOptions} />
+            <ChartComponent type="bar" data={chartData} options={chartOptions} />
           </div>
         </div>
       ) : (
         <div className="mb-6">
-          {/* <h2 className="text-2xl font-bold mb-4">Routes Availability</h2> */}
           <div className="flex justify-center">
             <div
               className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 cursor-pointer transform hover:-translate-y-1"

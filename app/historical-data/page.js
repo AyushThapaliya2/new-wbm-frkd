@@ -1,3 +1,5 @@
+// pages/historical-data.js
+
 'use client';
 import React, { useState, useEffect } from "react";
 import { useAuth } from '@/context/AuthContext';
@@ -7,6 +9,12 @@ import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
 import ChartComponent from '@/components/ChartComponent';
 import DownloadReport from '@/components/DownloadReport';
 import Modal from '@/components/Modal';
+import { 
+  calculateAverageFillRates, 
+  calculateEmptyingEvents, 
+  summarizeAnomalies, 
+  summarizeSuddenChanges 
+} from '@/utils/summaryDetailHelpers';
 
 function Data() {
   const { session } = useAuth();
@@ -19,7 +27,6 @@ function Data() {
     "rgba(153, 102, 255, 0.5)", // purple
     "rgba(255, 159, 64, 0.5)"   // orange
   ];
-
   const colorMapping = {};
   const getColorForDevice = (deviceId) => {
     if (!colorMapping[deviceId]) {
@@ -28,7 +35,6 @@ function Data() {
     }
     return colorMapping[deviceId];
   };
-
   const chartOptions = {
     scales: {
       y: {
@@ -61,7 +67,6 @@ function Data() {
     },
     responsiveAnimationDuration: 0
   };
-
   const [mockData, setHistorical] = useState([]);
   const [emptyingEvents, setEmptyingEvents] = useState({});
   const [activeTab, setActiveTab] = useState('fillLevels');
@@ -78,21 +83,26 @@ function Data() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalContent, setModalContent] = useState("");
-
   const togglePanel = (id) => {
     setExpandedPanel(expandedPanel === id ? null : id);
   };
-
   const openModal = (title, content) => {
     setModalTitle(title);
     setModalContent(content);
     setModalOpen(true);
   };
-
   const closeModal = () => {
     setModalOpen(false);
     setModalTitle("");
     setModalContent("");
+  };
+  const clearHistorical = async () => {
+    const success = await clearHistoricalData();
+    if (!success) {
+      alert('Error clearing historical data');
+    } else {
+      setHistorical([]);
+    }
   };
 
   useEffect(() => {
@@ -123,6 +133,7 @@ function Data() {
 
     getHistorical();
 
+    //Supabase realtime subscription and cleanup
     const unsubscribe = subscribeToTableChanges('historical', (payload) => {
       switch (payload.eventType) {
         case 'INSERT':
@@ -150,99 +161,9 @@ function Data() {
     };
   }, []);
 
-  const clearHistorical = async () => {
-    const success = await clearHistoricalData();
-    if (!success) {
-      alert('Error clearing historical data');
-    } else {
-      setHistorical([]);
-    }
-  };
-
   useEffect(() => {
     updateChartData();
   }, [mockData, startDate, endDate, emptyingEvents]);
-
-  const calculateAverageFillRates = (data) => {
-    const averageFillRates = {};
-
-    const groupedByDevice = data.reduce((acc, item) => {
-      if (!acc[item.unique_id]) {
-        acc[item.unique_id] = [];
-      }
-      acc[item.unique_id].push(item);
-      return acc;
-    }, {});
-
-    for (const [unique_id, records] of Object.entries(groupedByDevice)) {
-      let totalFillRate = 0;
-      let totalIntervals = 0;
-      let intervalSum = 0;
-      let intervalCount = 0;
-      let previousItem = null;
-
-      records.forEach((item) => {
-        if (previousItem) {
-          const timeDiff = (new Date(item.saved_time) - new Date(previousItem.saved_time)) / (1000 * 60 * 60); // in hours
-          const levelDiff = item.level_in_percents - previousItem.level_in_percents;
-
-          //if bin is above 20% full and drops to below 10% we can assume it was emptied. this accounts for when bins are emptied before full level (>75%)
-          if (previousItem.level_in_percents > 20 && item.level_in_percents <= 10) {
-            if (intervalCount > 0) {
-              totalFillRate += intervalSum / intervalCount;
-              totalIntervals++;
-            }
-            intervalSum = 0;
-            intervalCount = 0;
-          } else {
-            intervalSum += levelDiff / timeDiff;
-            intervalCount++;
-          }
-        }
-        previousItem = item;
-      });
-
-      if (intervalCount > 0) {
-        totalFillRate += intervalSum / intervalCount;
-        totalIntervals++;
-      }
-
-      averageFillRates[unique_id] = totalIntervals > 0 ? totalFillRate / totalIntervals : 0;
-    }
-
-    return averageFillRates;
-  };
-
-  const calculateEmptyingEvents = (data) => {
-    const emptyingEvents = {};
-
-    const groupedByDevice = data.reduce((acc, item) => {
-      if (!acc[item.unique_id]) {
-        acc[item.unique_id] = [];
-      }
-      acc[item.unique_id].push(item);
-      return acc;
-    }, {});
-
-    for (const [unique_id, records] of Object.entries(groupedByDevice)) {
-      let emptyCount = 0;
-      let previousItem = null;
-
-      records.forEach((item) => {
-        if (previousItem) {
-          // If bin is above 20% full and drops to below 10%, we can assume it was emptied
-          if (previousItem.level_in_percents > 20 && item.level_in_percents <= 10) {
-            emptyCount++;
-          }
-        }
-        previousItem = item;
-      });
-
-      emptyingEvents[unique_id] = emptyCount;
-    }
-
-    return emptyingEvents;
-  };
 
   const updateChartData = () => {
     const filteredData = mockData.filter(item => {
@@ -328,37 +249,6 @@ function Data() {
     setLastSavedTimes(lastTimes);
     setDevicePings(pings);
     setDeviceInsights(insights);
-  };
-
-  const summarizeAnomalies = (anomalies) => {
-    const summary = {};
-    anomalies.forEach((level, time) => {
-      if (!summary[level]) {
-        summary[level] = {
-          count: 0,
-          times: []
-        };
-      }
-      summary[level].count++;
-      summary[level].times.push(time);
-    });
-    return Object.entries(summary).map(([level, data]) => ({
-      level: level,
-      occurrences: data.count,
-      times: data.times.join(", ")
-    }));
-  };
-
-  const summarizeSuddenChanges = (changes) => {
-    const summary = {};
-    changes.forEach(change => {
-      const key = `${change.from}% to ${change.to}%`;
-      if (!summary[key]) {
-        summary[key] = [];
-      }
-      summary[key].push(`between ${change.start} and ${change.end}`);
-    });
-    return summary;
   };
 
   const downloadCSV = () => {

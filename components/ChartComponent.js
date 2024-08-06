@@ -1,12 +1,13 @@
 // components/ChartComponent.js
 import React from 'react';
-import { Line } from 'react-chartjs-2';
+import { Line, Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,
   Title,
   Tooltip,
   Legend,
@@ -19,14 +20,16 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,
   Title,
   Tooltip,
   Legend,
   TimeScale
 );
 
-const ChartComponent = ({ data, options }) => {
-  return <Line data={data} options={options} />;
+const ChartComponent = ({ type = 'line', data, options }) => {
+  const Chart = type === 'bar' ? Bar : Line;
+  return <Chart data={data} options={options} />;
 };
 
 export default ChartComponent;

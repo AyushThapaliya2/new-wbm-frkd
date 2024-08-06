@@ -7,7 +7,7 @@ import ListView from '@/components/ListView';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { fetchBinDevices } from '@/lib/dataProvider';
-import { helperToConvertLevelToPercentage } from '@/utils/helperFunctions';
+import { convertLevelToPercentage } from '@/utils/deviceHelpers';
 import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
 
 export default function BinView() {
@@ -29,7 +29,7 @@ export default function BinView() {
   useEffect(() => {
     const getDevices = async () => {
       const data = await fetchBinDevices();
-      setDevices(helperToConvertLevelToPercentage(data));
+      setDevices(convertLevelToPercentage(data));
     };
 
     getDevices();
