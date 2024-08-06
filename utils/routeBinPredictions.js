@@ -3,80 +3,10 @@
 // Sets the predicted full time/date and then returns a list of bins that should be added to the route
 
 
+
 const THRESHOLD_IN_HOURS = 6;
 const MAX_FILL_PERCENT = 75;
 const LOW_FILL_RATE_LIMIT = 0.5;
-
-const mock_devices = [
-  {
-    unique_id: 1,
-    lat: 34.242245312686954,
-    lng: -118.53043313617162,
-    battery: 24,
-    level: 50,
-  },
-  {
-    unique_id: 2,
-    lat: 34.24162486342446,
-    lng: -118.53312379123766,
-    battery: 22,
-    level: 55,
-  },
-  {
-    unique_id: 3,
-    lat: 34.23864450968821,
-    lng: -118.52814541323107,
-    battery: 50,
-    level: 60,
-  },
-  {
-    unique_id: 4,
-    lat: 34.2383384,
-    lng: -118.5319139,
-    battery: 50,
-    level: 45,
-  },
-];
-
-const exampleCurrentFillLevels = {
-  1: 50,
-  2: 65,
-  3: 70,
-  4: 68,
-};
-
-
-function generateDynamicMockBins() {
-  const currentDateTime = new Date(); // Current time
-  const startDateTime = new Date(currentDateTime.getTime() - 24 * 3600000); // Start from 24 hours ago
-  const mockBinsData = [];
-  
-  // Define the unique IDs and their fill rates and start levels
-  // Adjusting bin fill rates to ensure one bin fills within the threshold period
-  const binSpecifications = [
-      { uniqueId: 56, fillRate: 1, startLevel: 9, hours: 6 },
-      { uniqueId: 57, fillRate: 2, startLevel: 8, hours: 6 },
-      { uniqueId: 58, fillRate: 9, startLevel: 10, hours: 6 },  // Modified to fill rapidly
-      { uniqueId: 59, fillRate: 0.1, startLevel: 6, hours: 6 },  // Low fill rate example
-  ];
-
-  binSpecifications.forEach(spec => {
-      for (let i = 0; i <= spec.hours; i++) {
-          let date = new Date(startDateTime.getTime() + i * 3600000); // Increment by 1 hour from 24 hours ago
-          let level = spec.startLevel + i * spec.fillRate;
-          level = Math.min(level, 75);  // Cap fill level at 75% if exceeded to simulate max capacity
-          mockBinsData.push({
-              id: mockBinsData.length + 1,
-              unique_id: spec.uniqueId,
-              level_in_percents: level,
-              saved_time: date.toISOString()
-          });
-      }
-  });
-
-  return mockBinsData;
-}
-
 
 
 
@@ -245,19 +175,3 @@ export function findLowFillRateBins(fillRates) {
   return lowFillRateBins;
 }
 
-
-
-
-//const mock_bins_data = generateDynamicMockBins();
-//const fillRates = calculateFillRate(mock_bins_data);
-//const numHours = estimateHoursUntilFull(mock_bins_data, fillRates);
-//const predictedTimes = predictFullTime(mock_bins_data, numHours);
-//const binsToPickup = binsDueForPickup(predictedTimes);
-//const lowFillRateBins = findLowFillRateBins(fillRates);
-
-//console.log("MOCK DATA: ", mock_bins_data);
-//console.log("Fill Rates: ", fillRates);
-//console.log("Num Hours: ",numHours);
-//console.log("Predicted pickup times for bins: ", predictedTimes);
-//console.log("Bins ready for pick up", binsToPickup);
-//console.log("Low Fill Rate Bins: ", lowFillRateBins);
