@@ -3,9 +3,9 @@
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { fetchUserDetails, fetchBinDevices, fetchWeatherDevices, fetchFeedbacks, addFeedback } from '@/lib/dataProvider';
-import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
+import { fetchUserDetails, fetchBinDevices, fetchWeatherDevices, fetchFeedbacks, addFeedback, updateFeedback } from '@/lib/dataProvider';
 import { FaTrash, FaSun } from 'react-icons/fa';
+import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
 
 export default function FeedbackPage() {
   const { session } = useAuth();
@@ -29,7 +29,6 @@ export default function FeedbackPage() {
     if (!session) {
       router.push('/login');
     } else {
-      router.push('/feedback');
       fetchUserDetails(session.user.id).then(data => {
         if (data) setUserDetails(data);
         setUserLoading(false);
@@ -48,19 +47,6 @@ export default function FeedbackPage() {
       });
     }
   }, [session, router, deviceType]);
-
-  useEffect(() => {
-    const unsubscribe = subscribeToTableChanges('feedbacks', () => {
-      fetchFeedbacks().then(data => {
-        setFeedbacks(data);
-        setSortedFeedbacks(data);
-      });
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, []);
 
   const handleAddFeedback = async () => {
     if (!deviceIdForFeedback) {
@@ -82,8 +68,8 @@ export default function FeedbackPage() {
       reported_by_name: `${userDetails.fname} ${userDetails.lname}`,
       title: deviceTitleForFeedback,
       description: deviceDescriptionForFeedback,
-      devicetype: deviceType === 'waste bins' ? 'Bin' : 'Weather'
-
+      devicetype: deviceType === 'waste bins' ? 'Bin' : 'Weather',
+      completed: false
     };
 
     const { data, error } = await addFeedback(feedback);
@@ -99,8 +85,27 @@ export default function FeedbackPage() {
       setTimeout(() => {
         setSuccessMessage("");
       }, 3000);
+
+      // Refresh feedbacks after adding a new one
+      fetchFeedbacks().then(data => {
+        setFeedbacks(data);
+        setSortedFeedbacks(data);
+      });
     }
   };
+
+  useEffect(() => {
+    const unsubscribe = subscribeToTableChanges('feedbacks', () => {
+      fetchFeedbacks().then(data => {
+        setFeedbacks(data);
+        setSortedFeedbacks(data);
+      });
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   const sortFeedbacks = (key) => {
     let sortedData = [...sortedFeedbacks];
@@ -137,6 +142,35 @@ export default function FeedbackPage() {
     setDeviceIdForFeedback("");
     setDeviceTitleForFeedback("");
     setDeviceDescriptionForFeedback("");
+  };
+
+  const handleToggleCompleted = async (feedbackId, currentStatus) => {
+    const updatedFeedback = {
+      completed: !currentStatus,
+      completed_date: !currentStatus ? new Date().toISOString() : null
+    };
+    const { data, error } = await updateFeedback(feedbackId, updatedFeedback);
+
+    if (error) {
+      console.error("Failed to update feedback. Please try again.");
+    } else {
+      handleFeedbackUpdate(data);
+    }
+  };
+
+  const handleFeedbackUpdate = (updatedFeedback) => {
+    if (!updatedFeedback) return;
+
+    setFeedbacks((prevFeedbacks) =>
+      prevFeedbacks.map((feedback) =>
+        feedback.id === updatedFeedback.id ? updatedFeedback : feedback
+      )
+    );
+    setSortedFeedbacks((prevSortedFeedbacks) =>
+      prevSortedFeedbacks.map((feedback) =>
+        feedback.id === updatedFeedback.id ? updatedFeedback : feedback
+      )
+    );
   };
 
   const filteredFeedbacks = searchTerm
@@ -229,7 +263,9 @@ export default function FeedbackPage() {
                   <th className="px-4 py-2 border-b" onClick={() => sortFeedbacks("device_id")}>Device</th>
                   <th className="px-4 py-2 border-b" onClick={() => sortFeedbacks("title")}>Title</th>
                   <th className="px-4 py-2 border-b">Description</th>
-                  <th className="px-4 py-2 border-b" onClick={() => sortFeedbacks("timestamp")}>Date</th>
+                  <th className="px-4 py-2 border-b" onClick={() => sortFeedbacks("timestamp")}>Date Created</th>
+                  <th className="px-4 py-2 border-b">Addressed</th>
+                  <th className="px-4 py-2 border-b">Date Addressed</th>
                 </tr>
               </thead>
               <tbody>
@@ -242,11 +278,23 @@ export default function FeedbackPage() {
                       <td className="px-4 py-2 border-b">{feedback.title}</td>
                       <td className="px-4 py-2 border-b">{feedback.description}</td>
                       <td className="px-4 py-2 border-b">{new Date(feedback.timestamp).toLocaleDateString()}</td>
+                      <td className="px-4 py-2 border-b">
+                        {session.user.role === 'admin' ? (
+                          <input
+                            type="checkbox"
+                            checked={feedback.completed}
+                            onChange={() => handleToggleCompleted(feedback.id, feedback.completed)}
+                          />
+                        ) : (
+                          feedback.completed ? 'Yes' : 'No'
+                        )}
+                      </td>
+                      <td className="px-4 py-2 border-b">{feedback.completed_date ? new Date(feedback.completed_date).toLocaleDateString() : 'N/A'}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="6" className="px-4 py-2 text-center border-b">No feedback found.</td>
+                    <td colSpan="8" className="px-4 py-2 text-center border-b">No feedback found.</td>
                   </tr>
                 )}
               </tbody>
