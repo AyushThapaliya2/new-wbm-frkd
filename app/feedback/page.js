@@ -283,14 +283,14 @@ export default function FeedbackPage() {
                         {session.user.role === 'admin' ? (
                           <input
                             type="checkbox"
-                            checked={feedback.completed}
-                            onChange={() => handleToggleCompleted(feedback.id, feedback.completed)}
+                            checked={feedback.addressed}
+                            onChange={() => handleToggleCompleted(feedback.id, feedback.addressed)}
                           />
                         ) : (
-                          feedback.completed ? 'Yes' : 'No'
+                          feedback.addressed ? 'Yes' : 'No'
                         )}
                       </td>
-                      <td className="px-4 py-2 border-b">{feedback.completed_date ? new Date(feedback.completed_date).toLocaleDateString() : 'N/A'}</td>
+                      <td className="px-4 py-2 border-b">{feedback.addressed_date ? new Date(feedback.addressed_date).toLocaleDateString() : 'N/A'}</td>
                     </tr>
                   ))
                 ) : (
