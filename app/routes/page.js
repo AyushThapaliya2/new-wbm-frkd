@@ -319,6 +319,7 @@ const Routes = () => {
         },
         waypoints: waypoints,
         travelMode: travelMode,
+        optimizeWaypoints: true,
       },
       (result, status) => {
         if (status === window.google.maps.DirectionsStatus.OK) {
