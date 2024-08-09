@@ -69,7 +69,7 @@ export default function FeedbackPage() {
       title: deviceTitleForFeedback,
       description: deviceDescriptionForFeedback,
       devicetype: deviceType === 'waste bins' ? 'Bin' : 'Weather',
-      completed: false
+      addressed: false
     };
 
     const { data, error } = await addFeedback(feedback);
@@ -147,8 +147,8 @@ export default function FeedbackPage() {
 
   const handleToggleCompleted = async (feedbackId, currentStatus) => {
     const updatedFeedback = {
-      completed: !currentStatus,
-      completed_date: !currentStatus ? new Date().toISOString() : null
+      addressed: !currentStatus,
+      addressed_date: !currentStatus ? new Date().toISOString() : null
     };
     const { data, error } = await updateFeedback(feedbackId, updatedFeedback);
 
@@ -284,7 +284,13 @@ export default function FeedbackPage() {
                           <input
                             type="checkbox"
                             checked={feedback.addressed}
-                            onChange={() => handleToggleCompleted(feedback.id, feedback.addressed)}
+                            onChange={() => {
+                              if (!feedback.addressed) {
+                                handleToggleCompleted(feedback.id, feedback.addressed);
+                              }
+                            }}
+                            disabled={feedback.addressed} // Disable the checkbox if it is already addressed
+                            className={feedback.addressed ? 'cursor-not-allowed' : ''}
                           />
                         ) : (
                           feedback.addressed ? 'Yes' : 'No'
