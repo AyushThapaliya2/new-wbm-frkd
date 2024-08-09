@@ -1,4 +1,3 @@
-// dashboard/page.js
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -56,10 +55,23 @@ export default function Home() {
       try {
         const data = await fetchHistoricalData();
 
-        const labels = data.map(item => new Date(item.saved_time));
+        // Find the most recent date in the data
+        const mostRecentDate = new Date(Math.max(...data.map(item => new Date(item.saved_time))));
+
+        // Calculate the date 7 days prior to the most recent date
+        const date7DaysAgo = new Date(mostRecentDate);
+        date7DaysAgo.setDate(mostRecentDate.getDate() - 7);
+
+        // Filter data to include only entries from the last 7 days
+        const filteredData = data.filter(item => {
+          const itemDate = new Date(item.saved_time);
+          return itemDate >= date7DaysAgo && itemDate <= mostRecentDate;
+        });
+
+        const labels = filteredData.map(item => new Date(item.saved_time));
         const dataset = {
           label: 'Bin Levels Over Time',
-          data: data.map(item => item.level_in_percents),
+          data: filteredData.map(item => item.level_in_percents),
           backgroundColor: 'rgba(75, 192, 192, 0.2)', // Semi-transparent color for overlaps
           borderColor: 'rgba(75, 192, 192, 1)',
           borderWidth: 1
@@ -77,7 +89,7 @@ export default function Home() {
     fetchSummary();
     fetchChartData();
 
-    // Set up real-time subscriptions
+    //Set up real-time subscriptions
     const unsubscribeDevices = subscribeToTableChanges('devices', fetchSummary);
     const unsubscribeFeedbacks = subscribeToTableChanges('feedbacks', fetchSummary);
     const unsubscribeHistorical = subscribeToTableChanges('historical', fetchChartData);
@@ -88,6 +100,7 @@ export default function Home() {
       unsubscribeFeedbacks();
       unsubscribeHistorical();
     };
+    
   }, []);
 
   const chartOptions = {
@@ -131,7 +144,7 @@ export default function Home() {
         <div className="mb-6">
           <h2 className="text-2xl font-bold mb-4">Bin Levels Over Time</h2>
           <div className="relative h-96">
-            <ChartComponent type="bar" data={chartData} options={chartOptions} />
+            <ChartComponent type="line" data={chartData} options={chartOptions} />
           </div>
         </div>
       ) : (

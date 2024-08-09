@@ -1,5 +1,3 @@
-// pages/historical-data.js
-
 'use client';
 import React, { useState, useEffect } from "react";
 import { useAuth } from '@/context/AuthContext';
@@ -170,6 +168,8 @@ function Data() {
       const itemDate = new Date(item.saved_time);
       const start = new Date(startDate);
       const end = new Date(endDate);
+      // Include the whole end date by setting the time to the end of the day
+      end.setHours(23, 59, 59, 999);
       return itemDate >= start && itemDate <= end;
     });
 
@@ -256,6 +256,8 @@ function Data() {
       const itemDate = new Date(item.saved_time);
       const start = new Date(startDate);
       const end = new Date(endDate);
+      // Include the whole end date by setting the time to the end of the day
+      end.setHours(23, 59, 59, 999);
       return itemDate >= start && itemDate <= end;
     });
 
