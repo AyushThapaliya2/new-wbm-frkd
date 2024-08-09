@@ -22,8 +22,8 @@
           const timeDiff = (new Date(item.saved_time) - new Date(previousItem.saved_time)) / (1000 * 60 * 60); // in hours
           const levelDiff = item.level_in_percents - previousItem.level_in_percents;
   
-          //if bin is above 20% full and drops to below 10% we can assume it was emptied. this accounts for when bins are emptied before full level (>75%)
-          if (previousItem.level_in_percents > 20 && item.level_in_percents <= 10) {
+          //if bin is above 20% full and drops to below 5% we can assume it was emptied. this accounts for when bins are emptied before full level (>75%)
+          if (previousItem.level_in_percents > 20 && item.level_in_percents <= 5) {
             if (intervalCount > 0) {
               totalFillRate += intervalSum / intervalCount;
               totalIntervals++;
@@ -67,8 +67,8 @@
   
       records.forEach((item) => {
         if (previousItem) {
-          // If bin is above 20% full and drops to below 10%, we can assume it was emptied
-          if (previousItem.level_in_percents > 20 && item.level_in_percents <= 10) {
+          // If bin is above 20% full and drops to below 5%, we can assume it was emptied
+          if (previousItem.level_in_percents > 20 && item.level_in_percents <= 5) {
             emptyCount++;
           }
         }
@@ -81,7 +81,9 @@
     return emptyingEvents;
   };
   
-  // Summarize anomalies
+  // Summarize the "out of range" pings (above 100% or below 0%)
+  //shouldn't occur very often if device is setup properly
+  //but it can help to detect something light sitting on top (> 100%) or errors with bin height setting
   export const summarizeAnomalies = (anomalies) => {
     const summary = {};
     anomalies.forEach((level, time) => {
