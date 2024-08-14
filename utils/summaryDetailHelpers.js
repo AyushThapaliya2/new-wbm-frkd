@@ -50,6 +50,7 @@
   };
   
   // Calculate emptying events
+  // will most likely need to be updated depending ping intervals
   export const calculateEmptyingEvents = (data) => {
     const emptyingEvents = {};
   
