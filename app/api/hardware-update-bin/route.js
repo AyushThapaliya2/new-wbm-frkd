@@ -59,11 +59,16 @@ export const POST = async (req) => {
     const updateData = await updateDevice(unique_id, updateFields);
 
     if (deviceData.is_registered) {
-      await saveToHistorical({
+      const historicalData = {
         unique_id: unique_id,
         level_in_percents: level_in_percents,
         saved_time: new Date(),
-      });
+      };
+
+      if (temp !== undefined) historicalData.temp = temp;
+      if (humidity !== undefined) historicalData.humidity = humidity;
+
+      await saveToHistorical(historicalData);
     }
 
     return new Response(JSON.stringify({ status: 1, msg: 'Device information updated and saved to historical', data: updateData }), { status: 200 });
