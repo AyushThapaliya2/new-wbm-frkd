@@ -34,7 +34,7 @@ export default function BinView() {
 
     getDevices();
 
-    const unsubscribe = subscribeToTableChanges('devices', (payload) => {
+    const unsubscribe = subscribeToTableChanges('weather_sensors', (payload) => {
       console.log('Change received!', payload);
       getDevices();
     });

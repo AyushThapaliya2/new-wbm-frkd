@@ -1,4 +1,4 @@
-import { updateDevice, insertNewDevice, saveToHistorical, getDeviceById } from '@/lib/dataProvider';
+import { updateDeviceHardware, insertNewDevice, saveToHistorical, getDeviceById } from '@/lib/dataProvider';
 
 export const POST = async (req) => {
   const body = await req.json();
@@ -56,7 +56,7 @@ export const POST = async (req) => {
     const trashHeight = binHeight - level;
     const level_in_percents = parseInt((trashHeight * 100) / binHeight);
 
-    const updateData = await updateDevice(unique_id, updateFields);
+    const updateData = await updateDeviceHardware(unique_id, updateFields);
 
     if (deviceData.is_registered) {
       const historicalData = {

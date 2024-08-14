@@ -2,7 +2,7 @@ import { updateWeatherDevice, insertNewWeatherDevice, getWeatherDeviceById } fro
 
 export const POST = async (req) => {
   const body = await req.json();
-  const { token, unique_id, battery, reception, temperature, humidity } = body;
+  const { token, unique_id, battery, reception, temp, humidity } = body;
   const secretToken = process.env.SECRET_TOKEN;
   
   if (token !== secretToken) {
@@ -17,7 +17,7 @@ export const POST = async (req) => {
   const updateFields = {};
   if (battery !== undefined) updateFields.battery = battery;
   if (reception !== undefined) updateFields.reception = reception;
-  if (temperature !== undefined) updateFields.temperature = temperature;
+  if (temp !== undefined) updateFields.temp = temp;
   if (humidity !== undefined) updateFields.humidity = humidity;
   updateFields.timestamp = new Date();
 
@@ -45,7 +45,7 @@ export const POST = async (req) => {
         reception,
         timestamp: new Date(),
         is_registered: false,
-        temperature,
+        temp,
         humidity
       });
 

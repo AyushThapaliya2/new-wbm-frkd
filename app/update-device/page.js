@@ -3,7 +3,7 @@
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { fetchUserDetails, fetchBinDevices, fetchWeatherDevices, updateDeviceInfo } from '@/lib/dataProvider';
+import { fetchUserDetails, fetchBinDevices, fetchWeatherDevices, updateDeviceSoftware } from '@/lib/dataProvider';
 import dynamic from 'next/dynamic';
 import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
 import { FaTrash, FaSun } from 'react-icons/fa';
@@ -100,7 +100,7 @@ export default function UpdateDevicesPage() {
       lng: parseFloat(longitude),
     };
 
-    const { data, error } = await updateDeviceInfo(updatedDevice, deviceType);
+    const { data, error } = await updateDeviceSoftware(updatedDevice, deviceType);
 
     if (error) {
       setFormError("Failed to update device. Please try again.");

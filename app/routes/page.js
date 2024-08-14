@@ -17,7 +17,7 @@ import {
   updateRouteStatus,
   deleteRoute
 } from '@/lib/dataProvider';
-import {  convertLevelToPercentage, pickDevicesWithIssues } from '@/utils/deviceHelpers';
+import { convertLevelToPercentage, pickDevicesWithIssues } from '@/utils/deviceHelpers';
 import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -49,7 +49,7 @@ const Routes = () => {
     if (!session) {
       router.push('/login');
     }
-    else{
+    else {
       router.push('/routes');
     }
   }, [session, router]);
@@ -189,7 +189,7 @@ const Routes = () => {
         );
       });
       setDevicesToWorkOn(filtered);
-      if(filtered.length === 0){
+      if (filtered.length === 0) {
         setDirections(null);
         setEstimatedTime("");
       }
@@ -319,6 +319,7 @@ const Routes = () => {
         },
         waypoints: waypoints,
         travelMode: travelMode,
+        optimizeWaypoints: true,
       },
       (result, status) => {
         if (status === window.google.maps.DirectionsStatus.OK) {
@@ -333,6 +334,57 @@ const Routes = () => {
         }
       }
     );
+  };
+
+  const optimizeRoute = () => {
+    if (devicesToWorkOn.length < 2) return;
+
+    // A basic greedy algorithm for TSP (Nearest Neighbor)
+    const optimizedDevices = [devicesToWorkOn[0]];
+    const remainingDevices = devicesToWorkOn.slice(1);
+
+    while (remainingDevices.length > 0) {
+      const lastDevice = optimizedDevices[optimizedDevices.length - 1];
+      let nearestDeviceIndex = 0;
+      let minDistance = Number.MAX_VALUE;
+
+      for (let i = 0; i < remainingDevices.length; i++) {
+        const distance = calculateDistance(lastDevice, remainingDevices[i]);
+        if (distance < minDistance) {
+          minDistance = distance;
+          nearestDeviceIndex = i;
+        }
+      }
+
+      optimizedDevices.push(remainingDevices[nearestDeviceIndex]);
+      remainingDevices.splice(nearestDeviceIndex, 1);
+    }
+
+    setDevicesToWorkOn(optimizedDevices);
+    fetchDirections(optimizedDevices, travelMode);
+  };
+
+  const calculateDistance = (device1, device2) => {
+    const lat1 = device1.lat;
+    const lng1 = device1.lng;
+    const lat2 = device2.lat;
+    const lng2 = device2.lng;
+    const R = 6371; // Radius of the Earth in km
+
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLng / 2) *
+        Math.sin(dLng / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c; // Distance in km
+
+    return distance;
   };
 
   useEffect(() => {
@@ -378,6 +430,12 @@ const Routes = () => {
                 </select>
                 <span>{estimatedTime}</span>
               </div>
+              <button
+                onClick={optimizeRoute}
+                className="bg-purple-500 text-white px-4 py-2 rounded"
+              >
+                Optimize Route
+              </button>
               <button
                 onClick={createNewRoute}
                 className="bg-blue-500 text-white px-4 py-2 rounded"
@@ -463,6 +521,6 @@ const Routes = () => {
       </div>
     </div>
   );
-};  
+};
 
 export default Routes;
