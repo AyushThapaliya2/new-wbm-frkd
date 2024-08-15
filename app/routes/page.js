@@ -336,6 +336,9 @@ const Routes = () => {
     );
   };
 
+
+  //original algo used before implementing google's 'optimizeWaypoints'
+  //commenting out the button linked to this function since no longer necessary
   const optimizeRoute = () => {
     if (devicesToWorkOn.length < 2) return;
 
@@ -430,12 +433,12 @@ const Routes = () => {
                 </select>
                 <span>{estimatedTime}</span>
               </div>
-              <button
+              {/* <button
                 onClick={optimizeRoute}
                 className="bg-purple-500 text-white px-4 py-2 rounded"
               >
                 Optimize Route
-              </button>
+              </button> */}
               <button
                 onClick={createNewRoute}
                 className="bg-blue-500 text-white px-4 py-2 rounded"

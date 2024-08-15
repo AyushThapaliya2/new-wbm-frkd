@@ -1,4 +1,4 @@
-'use client';
+'use client'
 import React, { useState, useEffect } from "react";
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -7,6 +7,7 @@ import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
 import ChartComponent from '@/components/ChartComponent';
 import DownloadReport from '@/components/DownloadReport';
 import Modal from '@/components/Modal';
+import ConfirmationModal from '@/components/ConfirmationModal';  // Import the ConfirmationModal component
 import { 
   calculateAverageFillRates, 
   calculateEmptyingEvents, 
@@ -81,6 +82,8 @@ function Data() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalContent, setModalContent] = useState("");
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);  // Add state for confirmation modal
+
   const togglePanel = (id) => {
     setExpandedPanel(expandedPanel === id ? null : id);
   };
@@ -94,6 +97,12 @@ function Data() {
     setModalTitle("");
     setModalContent("");
   };
+  const openConfirmModal = () => {  // Function to open confirmation modal
+    setConfirmModalOpen(true);
+  };
+  const closeConfirmModal = () => {  // Function to close confirmation modal
+    setConfirmModalOpen(false);
+  };
   const clearHistorical = async () => {
     const success = await clearHistoricalData();
     if (!success) {
@@ -101,6 +110,7 @@ function Data() {
     } else {
       setHistorical([]);
     }
+    closeConfirmModal();  // Close modal after clearing
   };
 
   useEffect(() => {
@@ -133,25 +143,29 @@ function Data() {
 
     //Supabase realtime subscription and cleanup
     const unsubscribe = subscribeToTableChanges('historical', (payload) => {
-      switch (payload.eventType) {
-        case 'INSERT':
-          setHistorical((prevData) => [...prevData, payload.new]);
-          break;
-        case 'UPDATE':
-          setHistorical((prevData) =>
-            prevData.map((item) =>
-              item.id === payload.new.id ? payload.new : item
-            )
-          );
-          break;
-        case 'DELETE':
-          setHistorical((prevData) =>
-            prevData.filter((item) => item.id !== payload.old.id)
-          );
-          break;
-        default:
-          break;
+      if(payload)
+      {
+        switch (payload.eventType) {
+          case 'INSERT':
+            setHistorical((prevData) => [...prevData, payload.new]);
+            break;
+          case 'UPDATE':
+            setHistorical((prevData) =>
+              prevData.map((item) =>
+                item.id === payload.new.id ? payload.new : item
+              )
+            );
+            break;
+          case 'DELETE':
+            setHistorical((prevData) =>
+              prevData.filter((item) => item.id !== payload.old.id)
+            );
+            break;
+          default:
+            break;
+        }
       }
+
     });
 
     return () => {
@@ -321,6 +335,12 @@ function Data() {
         >
           Download Historical CSV
         </button>
+        <button
+          onClick={openConfirmModal}  // Open confirmation modal on click
+          className="bg-red-500 text-white rounded px-4 py-2"
+        >
+          Clear Historical Data
+        </button>
       </div>
       <table className="min-w-full bg-white border border-gray-300 shadow-lg rounded-lg overflow-hidden">
         <thead className="bg-gray-100">
@@ -389,6 +409,13 @@ function Data() {
         onClose={closeModal}
         title={modalTitle}
         content={modalContent}
+      />
+      <ConfirmationModal
+        isOpen={confirmModalOpen}
+        onClose={closeConfirmModal}
+        onConfirm={clearHistorical}
+        title="Confirm Deletion"
+        message="Are you sure you want to clear all historical data? This action cannot be undone."
       />
     </div>
   );
