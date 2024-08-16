@@ -270,26 +270,36 @@ function Data() {
       const itemDate = new Date(item.saved_time);
       const start = new Date(startDate);
       const end = new Date(endDate);
-      // Include the whole end date by setting the time to the end of the day
       end.setHours(23, 59, 59, 999);
       return itemDate >= start && itemDate <= end;
     });
-
+  
     const headers = [
       "unique_id", "saved_time", "level_in_percents"
       // Add other relevant headers if necessary
     ];
-
+  
     const csvData = [
-      headers.join(","), // Join headers with comma
-      ...filteredData.map(item =>
-        `${item.unique_id},${new Date(item.saved_time).toISOString()},${item.level_in_percents}`
-        // Add other relevant fields if necessary
-      )
+      headers.join(","),
+      ...filteredData.map(item => {
+        // Convert the UTC time to Los Angeles time
+        const laTime = new Date(item.saved_time).toLocaleString("en-US", {
+          timeZone: "America/Los_Angeles",
+          hour12: false,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
+  
+        return `${item.unique_id},${laTime},${item.level_in_percents}`;
+      })
     ].join("\n");
-
+  
     const filename = `historical_data_${startDate}_to_${endDate}.csv`;
-
+  
     const blob = new Blob([csvData], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
