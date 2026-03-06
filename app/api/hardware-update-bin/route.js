@@ -17,18 +17,18 @@ export const POST = async (req) => {
     humidity,
     // new optional fields — passed through to device only
     bin_height,
+    h2s: h2sRaw,
+    smoke: smokeRaw,
+    nh3: nh3Raw,
+    // backwards-compatible aliases
     h2s_ppm: h2sPpmRaw,
     smoke_ppm: smokePpmRaw,
     nh3_ppm: nh3PpmRaw,
-    // gas aliases without _ppm
-    h2s,
-    smoke,
-    nh3,
   } = body;
 
-  const h2s_ppm = h2sPpmRaw ?? h2s;
-  const smoke_ppm = smokePpmRaw ?? smoke;
-  const nh3_ppm = nh3PpmRaw ?? nh3;
+  const h2s = h2sRaw ?? h2sPpmRaw;
+  const smoke = smokeRaw ?? smokePpmRaw;
+  const nh3 = nh3Raw ?? nh3PpmRaw;
 
   const secretToken = process.env.SECRET_TOKEN;
 
@@ -58,9 +58,9 @@ export const POST = async (req) => {
 
   // allow updating these on the device record, but they don't affect original logic
   if (bin_height !== undefined) updateFields.bin_height = bin_height;
-  if (h2s_ppm !== undefined) updateFields.h2s_ppm = h2s_ppm;
-  if (smoke_ppm !== undefined) updateFields.smoke_ppm = smoke_ppm;
-  if (nh3_ppm !== undefined) updateFields.nh3_ppm = nh3_ppm;
+  if (h2s !== undefined) updateFields.h2s = h2s;
+  if (smoke !== undefined) updateFields.smoke = smoke;
+  if (nh3 !== undefined) updateFields.nh3 = nh3;
 
   // check BEFORE adding timestamp (so timestamp-only doesn't pass)
   if (Object.keys(updateFields).length === 0) {
@@ -96,9 +96,9 @@ export const POST = async (req) => {
         humidity,
         // store extras on first sight too (doesn't change core behavior)
         bin_height,
-        h2s_ppm,
-        smoke_ppm,
-        nh3_ppm,
+        h2s,
+        smoke,
+        nh3,
       });
 
       return new Response(
@@ -130,10 +130,9 @@ export const POST = async (req) => {
       if (temp !== undefined) historicalData.temp = temp;
       if (humidity !== undefined) historicalData.humidity = humidity;
 
-      if (h2s_ppm !== undefined) historicalData.h2s_ppm = h2s_ppm;
-
-      if (smoke_ppm !== undefined) historicalData.smoke_ppm = smoke_ppm;
-      if (nh3_ppm !== undefined) historicalData.nh3_ppm = nh3_ppm;
+      if (h2s !== undefined) historicalData.h2s = h2s;
+      if (smoke !== undefined) historicalData.smoke = smoke;
+      if (nh3 !== undefined) historicalData.nh3 = nh3;
 
       await saveToHistorical(historicalData);
     }

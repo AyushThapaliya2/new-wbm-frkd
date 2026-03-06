@@ -34,17 +34,17 @@ function clamp01(x) {
   return Math.max(0, Math.min(1, Number.isFinite(Number(x)) ? Number(x) : 0));
 }
 
-function gasSeverity({ smoke_ppm = 0, nh3_ppm = 0, h2s_ppm = 0 }) {
-  const s = clamp01(Number(smoke_ppm) / RULES.SMOKE_SCALE);
-  const n = clamp01(Number(nh3_ppm) / RULES.NH3_SCALE);
-  const h = clamp01(Number(h2s_ppm) / RULES.H2S_SCALE);
+function gasSeverity({ smoke = 0, nh3 = 0, h2s = 0 }) {
+  const s = clamp01(Number(smoke) / RULES.SMOKE_SCALE);
+  const n = clamp01(Number(nh3) / RULES.NH3_SCALE);
+  const h = clamp01(Number(h2s) / RULES.H2S_SCALE);
   return clamp01(0.6 * s + 0.3 * n + 0.1 * h);
 }
 
-function criticalFlags({ smoke_ppm = 0, nh3_ppm = 0, h2s_ppm = 0, level_pct }) {
-  const smokeCritical = smoke_ppm >= RULES.SMOKE_CRITICAL;
-  const nh3Critical = nh3_ppm >= RULES.NH3_CRITICAL;
-  const h2sCritical = h2s_ppm >= RULES.H2S_CRITICAL;
+function criticalFlags({ smoke = 0, nh3 = 0, h2s = 0, level_pct }) {
+  const smokeCritical = smoke >= RULES.SMOKE_CRITICAL;
+  const nh3Critical = nh3 >= RULES.NH3_CRITICAL;
+  const h2sCritical = h2s >= RULES.H2S_CRITICAL;
   const fillCritical = level_pct >= RULES.FILL_CRITICAL;
   const criticalGasCount = [smokeCritical, nh3Critical, h2sCritical].filter(
     Boolean
@@ -124,7 +124,7 @@ export async function POST(req) {
     const dev = await sb
       .from("devices")
       .select(
-        "unique_id, bin_height, level, temp, humidity, h2s_ppm, nh3_ppm, smoke_ppm, ch4_ppm, is_registered"
+        "unique_id, bin_height, level, temp, humidity, h2s, nh3, smoke, is_registered"
       )
       .eq("is_registered", true)
       .not("bin_height", "is", null);
@@ -146,7 +146,7 @@ export async function POST(req) {
       const hist = await sb
         .from("historical")
         .select(
-          "unique_id, level_in_percents, saved_time, temp, humidity, h2s_ppm, nh3_ppm, smoke_ppm, ch4_ppm"
+          "unique_id, level_in_percents, saved_time, temp, humidity, h2s, nh3, smoke"
         )
         .eq("unique_id", d.unique_id)
         .gte("saved_time", tStart)
@@ -171,12 +171,13 @@ export async function POST(req) {
       feat.humidity = Number.isFinite(Number(d.humidity))
         ? Number(d.humidity)
         : 40;
-      feat.h2s_ppm = Number.isFinite(Number(d.h2s_ppm)) ? Number(d.h2s_ppm) : 0;
-      feat.nh3_ppm = Number.isFinite(Number(d.nh3_ppm)) ? Number(d.nh3_ppm) : 0;
-      feat.smoke_ppm = Number.isFinite(Number(d.smoke_ppm))
-        ? Number(d.smoke_ppm)
-        : 0;
-      feat.ch4_ppm = Number.isFinite(Number(d.ch4_ppm)) ? Number(d.ch4_ppm) : 0;
+      feat.h2s = Number.isFinite(Number(d.h2s)) ? Number(d.h2s) : 0;
+      feat.nh3 = Number.isFinite(Number(d.nh3)) ? Number(d.nh3) : 0;
+      feat.smoke = Number.isFinite(Number(d.smoke)) ? Number(d.smoke) : 0;
+      // Backward compatibility for older trained models that used *_ppm feature names.
+      feat.h2s_ppm = feat.h2s;
+      feat.nh3_ppm = feat.nh3;
+      feat.smoke_ppm = feat.smoke;
 
       const gasStats = summarizeGas(H);
       feat.h2s_max_h = gasStats.h2s_max ?? 0;
@@ -197,9 +198,9 @@ export async function POST(req) {
 
       // ops-aware fusion
       const gasScore = gasSeverity({
-        smoke_ppm: feat.smoke_ppm,
-        nh3_ppm: feat.nh3_ppm,
-        h2s_ppm: feat.h2s_ppm,
+        smoke: feat.smoke,
+        nh3: feat.nh3,
+        h2s: feat.h2s,
       });
       const fillScore = Math.max(0, Math.min(1, level_pct / 100));
       let ops_priority = Math.max(
@@ -213,9 +214,9 @@ export async function POST(req) {
       );
 
       const flags = criticalFlags({
-        smoke_ppm: feat.smoke_ppm,
-        nh3_ppm: feat.nh3_ppm,
-        h2s_ppm: feat.h2s_ppm,
+        smoke: feat.smoke,
+        nh3: feat.nh3,
+        h2s: feat.h2s,
         level_pct,
       });
       if (flags.smokeCritical)
@@ -229,9 +230,9 @@ export async function POST(req) {
         unique_id: d.unique_id,
         level_pct,
         fill_rate: Math.round(feat.fill_rate * 100) / 100,
-        smoke_ppm: feat.smoke_ppm,
-        nh3_ppm: feat.nh3_ppm,
-        h2s_ppm: feat.h2s_ppm,
+        smoke: feat.smoke,
+        nh3: feat.nh3,
+        h2s: feat.h2s,
         smell_risk: Math.round(feat.smell_risk),
         prob_pickup_in_T_hours: Math.max(0, Math.min(1, prob)),
         ops_priority: Math.max(0, Math.min(1, ops_priority)),

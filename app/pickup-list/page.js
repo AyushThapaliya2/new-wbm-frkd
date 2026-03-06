@@ -181,9 +181,9 @@ export default function PickupListPage() {
                   <td className="p-3">{pct100(r.level_pct)}</td>
                   <td className="p-3">{num(r.fill_rate)}</td>
                   <td className="p-3">{num(r.smell_risk, 0)}</td>
-                  <td className="p-3">{num(r.h2s_ppm, 1)}</td>
-                  <td className="p-3">{num(r.nh3_ppm, 1)}</td>
-                  <td className="p-3">{num(r.smoke_ppm, 1)}</td>
+                  <td className="p-3">{num(r.h2s, 1)}</td>
+                  <td className="p-3">{num(r.nh3, 1)}</td>
+                  <td className="p-3">{num(r.smoke, 1)}</td>
                 </tr>
               ))
             )}

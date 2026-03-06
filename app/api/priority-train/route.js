@@ -55,7 +55,7 @@ export async function POST(req) {
     const hist = await sb
       .from("historical")
       .select(
-        "unique_id, level_in_percents, saved_time, temp, humidity, h2s_ppm, nh3_ppm, smoke_ppm, ch4_ppm"
+        "unique_id, level_in_percents, saved_time, temp, humidity, h2s, nh3, smoke"
       )
       .eq("unique_id", d.unique_id)
       .order("saved_time", { ascending: true });
@@ -84,10 +84,9 @@ export async function POST(req) {
       feat.fill_rate = slopePcts(W);
       feat.temp = Number(cur.temp ?? 25);
       feat.humidity = Number(cur.humidity ?? 40);
-      feat.h2s_ppm = Number(cur.h2s_ppm ?? 0);
-      feat.nh3_ppm = Number(cur.nh3_ppm ?? 0);
-      feat.smoke_ppm = Number(cur.smoke_ppm ?? 0);
-      feat.ch4_ppm = Number(cur.ch4_ppm ?? 0);
+      feat.h2s = Number(cur.h2s ?? 0);
+      feat.nh3 = Number(cur.nh3 ?? 0);
+      feat.smoke = Number(cur.smoke ?? 0);
 
       const gasStats = summarizeGas(W);
       feat.h2s_max_h = gasStats.h2s_max;
@@ -106,10 +105,9 @@ export async function POST(req) {
         const sr = smellRisk({
           temp: fr.temp,
           humidity: fr.humidity,
-          h2s_ppm: fr.h2s_ppm,
-          nh3_ppm: fr.nh3_ppm,
-          smoke_ppm: fr.smoke_ppm,
-          ch4_ppm: fr.ch4_ppm,
+          h2s: fr.h2s,
+          nh3: fr.nh3,
+          smoke: fr.smoke,
         });
         if (
           (fr.level_in_percents ?? 0) >= full_threshold ||
