@@ -1,5 +1,5 @@
 // routes/page.js
-'use client'
+"use client";
 import React, { useState, useEffect } from "react";
 import MapView from "@/components/MapView";
 import {
@@ -15,12 +15,15 @@ import {
   fetchRecentRoutes,
   createRoute,
   updateRouteStatus,
-  deleteRoute
-} from '@/lib/dataProvider';
-import { convertLevelToPercentage, pickDevicesWithIssues } from '@/utils/deviceHelpers';
-import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
+  deleteRoute,
+} from "@/lib/dataProvider";
+import {
+  convertLevelToPercentage,
+  pickDevicesWithIssues,
+} from "@/utils/deviceHelpers";
+import { subscribeToTableChanges } from "@/lib/realtimeSubscription";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 const Routes = () => {
   const { session } = useAuth();
@@ -47,10 +50,9 @@ const Routes = () => {
 
   useEffect(() => {
     if (!session) {
-      router.push('/login');
-    }
-    else {
-      router.push('/routes');
+      router.push("/login");
+    } else {
+      router.push("/routes");
     }
   }, [session, router]);
 
@@ -91,8 +93,12 @@ const Routes = () => {
   }, [historical]);
 
   const mergeAndSetDevices = (filteredDevices) => {
-    const filteredIds = new Set(filteredDevices.map((device) => device.unique_id));
-    const uniquePredictedDevices = newPredicted.filter((device) => !filteredIds.has(device.unique_id));
+    const filteredIds = new Set(
+      filteredDevices.map((device) => device.unique_id)
+    );
+    const uniquePredictedDevices = newPredicted.filter(
+      (device) => !filteredIds.has(device.unique_id)
+    );
     const combinedDevices = [...filteredDevices, ...uniquePredictedDevices];
     setDevices(combinedDevices);
   };
@@ -109,20 +115,20 @@ const Routes = () => {
     getDevicesHistorical();
     getRoutes(); // Fetch routes here
 
-    const unsubscribeDevice = subscribeToTableChanges('devices', (payload) => {
-      console.log('Device change received!', payload);
+    const unsubscribeDevice = subscribeToTableChanges("devices", (payload) => {
+      console.log("Device change received!", payload);
       switch (payload.eventType) {
-        case 'INSERT':
+        case "INSERT":
           setDevices((prevDevices) => [...prevDevices, payload.new]);
           break;
-        case 'UPDATE':
+        case "UPDATE":
           setDevices((prevDevices) =>
             prevDevices.map((device) =>
               device.id === payload.new.id ? payload.new : device
             )
           );
           break;
-        case 'DELETE':
+        case "DELETE":
           setDevices((prevDevices) =>
             prevDevices.filter((device) => device.id !== payload.old.id)
           );
@@ -132,31 +138,34 @@ const Routes = () => {
       }
     });
 
-    const unsubscribeHistorical = subscribeToTableChanges('historical', (payload) => {
-      console.log('Historical change received!', payload);
-      switch (payload.eventType) {
-        case 'INSERT':
-          setHistorical((prevHistorical) => [...prevHistorical, payload.new]);
-          break;
-        case 'UPDATE':
-          setHistorical((prevHistorical) =>
-            prevHistorical.map((entry) =>
-              entry.id === payload.new.id ? payload.new : entry
-            )
-          );
-          break;
-        case 'DELETE':
-          setHistorical((prevHistorical) =>
-            prevHistorical.filter((entry) => entry.id !== payload.old.id)
-          );
-          break;
-        default:
-          break;
+    const unsubscribeHistorical = subscribeToTableChanges(
+      "historical",
+      (payload) => {
+        console.log("Historical change received!", payload);
+        switch (payload.eventType) {
+          case "INSERT":
+            setHistorical((prevHistorical) => [...prevHistorical, payload.new]);
+            break;
+          case "UPDATE":
+            setHistorical((prevHistorical) =>
+              prevHistorical.map((entry) =>
+                entry.id === payload.new.id ? payload.new : entry
+              )
+            );
+            break;
+          case "DELETE":
+            setHistorical((prevHistorical) =>
+              prevHistorical.filter((entry) => entry.id !== payload.old.id)
+            );
+            break;
+          default:
+            break;
+        }
       }
-    });
+    );
 
-    const unsubscribeRoutes = subscribeToTableChanges('routes', () => {
-      console.log('Route change received!');
+    const unsubscribeRoutes = subscribeToTableChanges("routes", () => {
+      console.log("Route change received!");
       getRoutes();
     });
 
@@ -216,9 +225,9 @@ const Routes = () => {
   };
 
   const getIndicatorColor = (bin) => {
-    if (bin.level >= 80) return 'bg-red-500';
-    if (bin.battery < 25) return 'bg-yellow-500';
-    return 'bg-green-500';
+    if (bin.level >= 80) return "bg-red-500";
+    if (bin.battery < 25) return "bg-yellow-500";
+    return "bg-green-500";
   };
 
   const renderWorkToDo = () => {
@@ -227,22 +236,21 @@ const Routes = () => {
     return devicesToWorkOn.map((device) => {
       const { emptyBin, changeBattery } = decideWorkToDo(device);
       return (
-        <div key={device.id} className="bg-white p-4 mb-4 rounded-lg shadow-md relative">
-          <div className={`absolute top-0 left-0 h-full w-2 ${getIndicatorColor(device)}`} />
+        <div
+          key={device.id}
+          className="bg-white p-4 mb-4 rounded-lg shadow-md relative"
+        >
+          <div
+            className={`absolute top-0 left-0 h-full w-2 ${getIndicatorColor(
+              device
+            )}`}
+          />
           <p className="text-black">
             <strong>Device ID:</strong> {device.unique_id}
           </p>
           <div>
-            {emptyBin && (
-              <div className="text-black">
-                Empty Bin
-              </div>
-            )}
-            {changeBattery && (
-              <div className="text-black">
-                Change Battery
-              </div>
-            )}
+            {emptyBin && <div className="text-black">Empty Bin</div>}
+            {changeBattery && <div className="text-black">Change Battery</div>}
           </div>
         </div>
       );
@@ -257,13 +265,13 @@ const Routes = () => {
       deviceids: devicesToWorkOn.map((device) => device.unique_id),
       emptybin: filters.emptyBin,
       changebattery: filters.changeBattery,
-      status: 'pending',
+      status: "pending",
       timestamp: new Date(),
     };
 
     const { data, error } = await createRoute(route);
     if (!error) {
-      console.log('Route created successfully:', data);
+      console.log("Route created successfully:", data);
       getRoutes();
     }
   };
@@ -274,17 +282,17 @@ const Routes = () => {
   };
 
   const startRoute = async (id) => {
-    const { data, error } = await updateRouteStatus(id, 'started', 'started');
+    const { data, error } = await updateRouteStatus(id, "started", "started");
     if (!error) {
-      console.log('Route started:', data);
+      console.log("Route started:", data);
       getRoutes();
     }
   };
 
   const finishRoute = async (id) => {
-    const { data, error } = await updateRouteStatus(id, 'finished', 'finished');
+    const { data, error } = await updateRouteStatus(id, "finished", "finished");
     if (!error) {
-      console.log('Route finished:', data);
+      console.log("Route finished:", data);
       getRoutes();
     }
   };
@@ -292,7 +300,7 @@ const Routes = () => {
   const deleteRouteById = async (id) => {
     const { data, error } = await deleteRoute(id);
     if (!error) {
-      console.log('Route deleted:', data);
+      console.log("Route deleted:", data);
       getRoutes();
     }
   };
@@ -335,7 +343,6 @@ const Routes = () => {
       }
     );
   };
-
 
   //original algo used before implementing google's 'optimizeWaypoints'
   //commenting out the button linked to this function since no longer necessary
@@ -484,28 +491,47 @@ const Routes = () => {
                     <tr key={route.id} className="border border-gray-300">
                       <td className="p-2 border border-gray-300">{route.id}</td>
                       {/* <td className="p-2 border border-gray-300">{route.employeeid}</td> */}
-                      <td className="p-2 border border-gray-300">{route.deviceids.join(", ")}</td>
-                      <td className="p-2 border border-gray-300">{route.status}</td>
-                      <td className="p-2 border border-gray-300">{new Date(route.timestamp).toLocaleString()}</td>
                       <td className="p-2 border border-gray-300">
-                        {route.started !== null ? new Date(route.started).toLocaleString() : null}
+                        {route.deviceids.join(", ")}
                       </td>
                       <td className="p-2 border border-gray-300">
-                        {route.finished !== null ? new Date(route.finished).toLocaleString() : null}
+                        {route.status}
+                      </td>
+                      <td className="p-2 border border-gray-300">
+                        {new Date(route.timestamp).toLocaleString()}
+                      </td>
+                      <td className="p-2 border border-gray-300">
+                        {route.started !== null
+                          ? new Date(route.started).toLocaleString()
+                          : null}
+                      </td>
+                      <td className="p-2 border border-gray-300">
+                        {route.finished !== null
+                          ? new Date(route.finished).toLocaleString()
+                          : null}
                       </td>
                       <td className="p-2 border border-gray-300">
                         {route.status === "pending" && (
-                          <button onClick={() => startRoute(route.id)} className="bg-green-500 text-white px-2 py-1 rounded">
+                          <button
+                            onClick={() => startRoute(route.id)}
+                            className="bg-green-500 text-white px-2 py-1 rounded"
+                          >
                             Start
                           </button>
                         )}
                         {route.status === "started" && (
-                          <button onClick={() => finishRoute(route.id)} className="bg-blue-500 text-white px-2 py-1 rounded">
+                          <button
+                            onClick={() => finishRoute(route.id)}
+                            className="bg-blue-500 text-white px-2 py-1 rounded"
+                          >
                             Complete
                           </button>
                         )}
                         {route.status === "finished" && (
-                          <button onClick={() => deleteRouteById(route.id)} className="bg-red-500 text-white px-2 py-1 rounded">
+                          <button
+                            onClick={() => deleteRouteById(route.id)}
+                            className="bg-red-500 text-white px-2 py-1 rounded"
+                          >
                             Delete
                           </button>
                         )}
@@ -514,7 +540,12 @@ const Routes = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="8" className="p-2 border border-gray-300 text-center">No routes available</td>
+                    <td
+                      colSpan="8"
+                      className="p-2 border border-gray-300 text-center"
+                    >
+                      No routes available
+                    </td>
                   </tr>
                 )}
               </tbody>

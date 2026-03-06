@@ -36,6 +36,13 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
             <span className="group-hover:text-white">Routes</span>
           </li>
         </Link>
+        {/* added by ayush: pickup priority list link */}
+        <Link href="/pickup-list" onClick={toggleSidebar}>
+          <li className="flex items-center p-4 border-b border-gray-600 hover:bg-gray-600 transition-colors cursor-pointer group">
+            <FaRoute className="mr-2" />
+            <span className="group-hover:text-white">Pickup Priority</span>
+          </li>
+        </Link>
         <Link href="/feedback" onClick={toggleSidebar}>
           <li className="flex items-center p-4 border-b border-gray-600 hover:bg-gray-600 transition-colors cursor-pointer group">
             <FaCommentDots className="mr-2" />

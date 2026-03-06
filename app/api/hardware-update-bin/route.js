@@ -1,16 +1,52 @@
-import { updateDeviceHardware, insertNewDevice, saveToHistorical, getDeviceById } from '@/lib/dataProvider';
+import {
+  updateDeviceHardware,
+  insertNewDevice,
+  saveToHistorical,
+  getDeviceById,
+} from "@/lib/dataProvider";
 
 export const POST = async (req) => {
   const body = await req.json();
-  const { token, unique_id, battery, level, reception, temp, humidity } = body;
+  const {
+    token,
+    unique_id,
+    battery,
+    level,
+    reception,
+    temp,
+    humidity,
+    // new optional fields — passed through to device only
+    bin_height,
+    h2s_ppm: h2sPpmRaw,
+    smoke_ppm: smokePpmRaw,
+    nh3_ppm: nh3PpmRaw,
+    // gas aliases without _ppm
+    h2s,
+    smoke,
+    nh3,
+  } = body;
+
+  const h2s_ppm = h2sPpmRaw ?? h2s;
+  const smoke_ppm = smokePpmRaw ?? smoke;
+  const nh3_ppm = nh3PpmRaw ?? nh3;
+
   const secretToken = process.env.SECRET_TOKEN;
 
   if (token !== secretToken) {
-    return new Response(JSON.stringify({ status: 0, msg: 'Unauthorized request: TOKEN INVALID' }), { status: 403 });
+    return new Response(
+      JSON.stringify({ status: 0, msg: "Unauthorized request: TOKEN INVALID" }),
+      { status: 403 }
+    );
   }
 
   if (!unique_id) {
-    return new Response(JSON.stringify({ status: 0, msg: 'Invalid input: unique_id is required' }), { status: 400 });
+    return new Response(
+      JSON.stringify({
+        status: 0,
+        msg: "Invalid input: unique_id is required",
+      }),
+      { status: 400 }
+    );
   }
 
   const updateFields = {};
@@ -19,18 +55,29 @@ export const POST = async (req) => {
   if (reception !== undefined) updateFields.reception = reception;
   if (temp !== undefined) updateFields.temp = temp;
   if (humidity !== undefined) updateFields.humidity = humidity;
-  updateFields.timestamp = new Date();
 
+  // allow updating these on the device record, but they don't affect original logic
+  if (bin_height !== undefined) updateFields.bin_height = bin_height;
+  if (h2s_ppm !== undefined) updateFields.h2s_ppm = h2s_ppm;
+  if (smoke_ppm !== undefined) updateFields.smoke_ppm = smoke_ppm;
+  if (nh3_ppm !== undefined) updateFields.nh3_ppm = nh3_ppm;
+
+  // check BEFORE adding timestamp (so timestamp-only doesn't pass)
   if (Object.keys(updateFields).length === 0) {
-    return new Response(JSON.stringify({ status: 0, msg: 'No valid fields provided for update' }), { status: 400 });
+    return new Response(
+      JSON.stringify({ status: 0, msg: "No valid fields provided for update" }),
+      { status: 400 }
+    );
   }
+
+  updateFields.timestamp = new Date();
 
   try {
     let deviceData;
     try {
       deviceData = await getDeviceById(unique_id);
     } catch (error) {
-      if (error.message === 'Device not found') {
+      if (error.message === "Device not found") {
         deviceData = null;
       } else {
         throw error;
@@ -39,41 +86,75 @@ export const POST = async (req) => {
 
     if (!deviceData) {
       const newDeviceData = await insertNewDevice({
-        unique_id: unique_id,
-        battery: battery,
-        level: level,
-        reception: reception,
+        unique_id,
+        battery,
+        level,
+        reception,
         timestamp: new Date(),
         is_registered: false,
-        temp: temp,
-        humidity: humidity
+        temp,
+        humidity,
+        // store extras on first sight too (doesn't change core behavior)
+        bin_height,
+        h2s_ppm,
+        smoke_ppm,
+        nh3_ppm,
       });
 
-      return new Response(JSON.stringify({ status: 1, msg: 'New device inserted with is_registered set to false', data: newDeviceData }), { status: 200 });
+      return new Response(
+        JSON.stringify({
+          status: 1,
+          msg: "New device inserted with is_registered set to false",
+          data: newDeviceData,
+        }),
+        { status: 200 }
+      );
     }
 
+    // ORIGINAL FILL% LOGIC (unchanged):
+    // uses stored device bin_height and the incoming `level`
     const binHeight = deviceData.bin_height;
     const trashHeight = binHeight - level;
     const level_in_percents = parseInt((trashHeight * 100) / binHeight);
 
     const updateData = await updateDeviceHardware(unique_id, updateFields);
 
+    // ORIGINAL historical behavior: only for registered devices,
+    // and only level_in_percents (+ temp/humidity if provided)
     if (deviceData.is_registered) {
       const historicalData = {
-        unique_id: unique_id,
-        level_in_percents: level_in_percents,
+        unique_id,
+        level_in_percents,
         saved_time: new Date(),
       };
-
       if (temp !== undefined) historicalData.temp = temp;
       if (humidity !== undefined) historicalData.humidity = humidity;
+
+      if (h2s_ppm !== undefined) historicalData.h2s_ppm = h2s_ppm;
+
+      if (smoke_ppm !== undefined) historicalData.smoke_ppm = smoke_ppm;
+      if (nh3_ppm !== undefined) historicalData.nh3_ppm = nh3_ppm;
 
       await saveToHistorical(historicalData);
     }
 
-    return new Response(JSON.stringify({ status: 1, msg: 'Device information updated and saved to historical', data: updateData }), { status: 200 });
+    return new Response(
+      JSON.stringify({
+        status: 1,
+        msg: "Device information updated and saved to historical",
+        data: updateData,
+      }),
+      { status: 200 }
+    );
   } catch (error) {
-    console.error('Error processing request:', error.message);
-    return new Response(JSON.stringify({ status: 0, msg: 'Internal Server Error', error: error.message }), { status: 500 });
+    console.error("Error processing request:", error.message);
+    return new Response(
+      JSON.stringify({
+        status: 0,
+        msg: "Internal Server Error",
+        error: error.message,
+      }),
+      { status: 500 }
+    );
   }
 };

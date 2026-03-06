@@ -1,28 +1,27 @@
 // waste-bins/page.js
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import MapView from '@/components/MapView';
-import ListView from '@/components/ListView';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
-import { fetchBinDevices } from '@/lib/dataProvider';
-import { convertLevelToPercentage } from '@/utils/deviceHelpers';
-import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
+import React, { useState, useEffect } from "react";
+import MapView from "@/components/MapView";
+import ListView from "@/components/ListView";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import { fetchBinDevices } from "@/lib/dataProvider";
+import { convertLevelToPercentage } from "@/utils/deviceHelpers";
+import { subscribeToTableChanges } from "@/lib/realtimeSubscription";
 
 export default function BinView() {
   const { session } = useAuth();
   const router = useRouter();
   const [devices, setDevices] = useState([]);
-  const [view, setView] = useState('map');
+  const [view, setView] = useState("map");
   console.log(devices);
 
   useEffect(() => {
     if (!session) {
-      router.push('/login');
-    }
-    else{
-      router.push('waste-bins');
+      router.push("/login");
+    } else {
+      router.push("waste-bins");
     }
   }, [session, router]);
 
@@ -34,8 +33,8 @@ export default function BinView() {
 
     getDevices();
 
-    const unsubscribe = subscribeToTableChanges('devices', (payload) => {
-      console.log('Change received!', payload);
+    const unsubscribe = subscribeToTableChanges("devices", (payload) => {
+      console.log("Change received!", payload);
       getDevices();
     });
 
@@ -45,10 +44,10 @@ export default function BinView() {
   }, []);
 
   const mapListToggle = () => {
-    if (view === 'map') {
-      return <MapView devices={devices} deviceType='bins' />;
-    } else if (view === 'list') {
-      return <ListView devices={devices} deviceType='bins' />;
+    if (view === "map") {
+      return <MapView devices={devices} deviceType="bins" />;
+    } else if (view === "list") {
+      return <ListView devices={devices} deviceType="bins" />;
     } else {
       return null;
     }
@@ -60,19 +59,23 @@ export default function BinView() {
         <main className="p-4">
           <div className="flex justify-center mb-4 space-x-4">
             <button
-              onClick={() => setView('map')}
-              className={`px-4 py-2 ${view === 'map' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+              onClick={() => setView("map")}
+              className={`px-4 py-2 ${
+                view === "map" ? "bg-blue-500 text-white" : "bg-gray-200"
+              }`}
             >
               Map View
             </button>
             <button
-              onClick={() => setView('list')}
-              className={`px-4 py-2 ${view === 'list' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+              onClick={() => setView("list")}
+              className={`px-4 py-2 ${
+                view === "list" ? "bg-blue-500 text-white" : "bg-gray-200"
+              }`}
             >
               List View
             </button>
           </div>
-          
+
           {mapListToggle()}
         </main>
       </div>
