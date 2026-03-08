@@ -20,6 +20,30 @@ const isValidNumber = (value) => {
   return Number.isFinite(numberValue);
 };
 
+const parseIntegerCandidate = (value) => {
+  if (value === undefined || value === null) return null;
+  const parsed = Number.parseInt(String(value), 10);
+  if (!Number.isFinite(parsed)) return null;
+  return parsed;
+};
+
+const parseHexToInteger = (value) => {
+  if (!value) return null;
+  const cleaned = String(value).replace(/^0x/i, "");
+  if (!/^[0-9a-fA-F]+$/.test(cleaned)) return null;
+  const parsed = Number.parseInt(cleaned, 16);
+  if (!Number.isFinite(parsed)) return null;
+  return parsed;
+};
+
+const resolveUniqueId = (decodedPayload, deviceIds) =>
+  firstDefined(
+    parseIntegerCandidate(decodedPayload.unique_id),
+    parseIntegerCandidate(decodedPayload.device_id),
+    parseIntegerCandidate(deviceIds.device_id),
+    parseHexToInteger(deviceIds.dev_addr)
+  );
+
 export const POST = async (req) => {
   try {
     const body = await req.json();
@@ -48,18 +72,13 @@ export const POST = async (req) => {
     const decodedPayload = event?.uplink_message?.decoded_payload || {};
     const deviceIds = event?.end_device_ids || {};
 
-    const unique_id = firstDefined(
-      decodedPayload.unique_id,
-      decodedPayload.device_id,
-      deviceIds.device_id,
-      deviceIds.dev_eui
-    );
+    const unique_id = resolveUniqueId(decodedPayload, deviceIds);
 
     if (!unique_id) {
       return new Response(
         JSON.stringify({
           status: 0,
-          msg: "Invalid TTN payload: unique_id/device_id not found",
+          msg: "Invalid TTN payload: provide numeric unique_id in decoded_payload or a valid dev_addr",
         }),
         { status: 400 }
       );
