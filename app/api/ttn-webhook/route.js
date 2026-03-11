@@ -3,6 +3,9 @@ import {
   insertNewDevice,
   saveToHistorical,
   getDeviceById,
+  updateWeatherDevice,
+  insertNewWeatherDevice,
+  getWeatherDeviceById,
 } from "@/lib/dataProvider";
 
 const firstDefined = (...values) =>
@@ -41,7 +44,7 @@ const resolveUniqueId = (decodedPayload, deviceIds) =>
     parseIntegerCandidate(decodedPayload.unique_id),
     parseIntegerCandidate(decodedPayload.device_id),
     parseIntegerCandidate(deviceIds.device_id),
-    parseHexToInteger(deviceIds.dev_addr)
+    parseHexToInteger(deviceIds.dev_addr), //it gives device Unique ID in the database
   );
 
 export const POST = async (req) => {
@@ -64,7 +67,7 @@ export const POST = async (req) => {
       if (headerSecret !== requiredSecret && bearerToken !== requiredSecret) {
         return new Response(
           JSON.stringify({ status: 0, msg: "Unauthorized webhook request" }),
-          { status: 403 }
+          { status: 403 },
         );
       }
     }
@@ -80,7 +83,7 @@ export const POST = async (req) => {
           status: 0,
           msg: "Invalid TTN payload: provide numeric unique_id in decoded_payload or a valid dev_addr",
         }),
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -88,7 +91,7 @@ export const POST = async (req) => {
     const level = firstDefined(decodedPayload.level, decodedPayload.distance);
     const reception = firstDefined(
       decodedPayload.reception,
-      event?.uplink_message?.rx_metadata?.[0]?.rssi
+      event?.uplink_message?.rx_metadata?.[0]?.rssi,
     );
     const temp = firstDefined(decodedPayload.temp, decodedPayload.temperature);
     const humidity = decodedPayload.humidity;
@@ -96,6 +99,7 @@ export const POST = async (req) => {
     const h2s = firstDefined(decodedPayload.h2s, decodedPayload.h2s_ppm);
     const smoke = firstDefined(decodedPayload.smoke, decodedPayload.smoke_ppm);
     const nh3 = firstDefined(decodedPayload.nh3, decodedPayload.nh3_ppm);
+    const receivedAt = new Date();
 
     const updateFields = {};
     if (battery !== undefined) updateFields.battery = battery;
@@ -114,11 +118,33 @@ export const POST = async (req) => {
           status: 0,
           msg: "No supported fields found in decoded_payload",
         }),
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    updateFields.timestamp = new Date();
+    const weatherUpdateFields = {};
+    if (battery !== undefined) weatherUpdateFields.battery = battery;
+    if (reception !== undefined) weatherUpdateFields.reception = reception;
+    if (temp !== undefined) weatherUpdateFields.temp = temp;
+    if (humidity !== undefined) weatherUpdateFields.humidity = humidity;
+
+    if (Object.keys(weatherUpdateFields).length > 0) {
+      weatherUpdateFields.timestamp = receivedAt;
+
+      const weatherDeviceData = await getWeatherDeviceById(unique_id);
+
+      if (!weatherDeviceData) {
+        await insertNewWeatherDevice({
+          unique_id,
+          ...weatherUpdateFields,
+          is_registered: false,
+        });
+      } else {
+        await updateWeatherDevice(unique_id, weatherUpdateFields);
+      }
+    }
+
+    updateFields.timestamp = receivedAt;
 
     let deviceData;
     try {
@@ -144,7 +170,7 @@ export const POST = async (req) => {
           msg: "TTN uplink received; new device inserted as unregistered",
           data: newDeviceData,
         }),
-        { status: 200 }
+        { status: 200 },
       );
     }
 
@@ -164,7 +190,7 @@ export const POST = async (req) => {
       const historicalData = {
         unique_id,
         level_in_percents,
-        saved_time: new Date(),
+        saved_time: receivedAt,
       };
       if (temp !== undefined) historicalData.temp = temp;
       if (humidity !== undefined) historicalData.humidity = humidity;
@@ -181,7 +207,7 @@ export const POST = async (req) => {
         msg: "TTN uplink processed",
         data: updateData,
       }),
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error("Error processing TTN webhook:", error.message);
@@ -191,7 +217,7 @@ export const POST = async (req) => {
         msg: "Internal Server Error",
         error: error.message,
       }),
-      { status: 500 }
+      { status: 500 },
     );
   }
 };
