@@ -23,6 +23,13 @@ const isValidNumber = (value) => {
   return Number.isFinite(numberValue);
 };
 
+const parseNumberCandidate = (value) => {
+  if (value === undefined || value === null) return undefined;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return undefined;
+  return parsed;
+};
+
 const parseIntegerCandidate = (value) => {
   if (value === undefined || value === null) return null;
   const parsed = Number.parseInt(String(value), 10);
@@ -39,11 +46,13 @@ const parseHexToInteger = (value) => {
   return parsed;
 };
 
-const resolveUniqueId = (decodedPayload, deviceIds) =>
+const resolveUniqueId = (decodedPayload, deviceIds, body) =>
   firstDefined(
     parseIntegerCandidate(decodedPayload.unique_id),
     parseIntegerCandidate(decodedPayload.device_id),
     parseIntegerCandidate(deviceIds.device_id),
+    parseIntegerCandidate(body?.unique_id),
+    parseIntegerCandidate(body?.device_id),
     parseHexToInteger(deviceIds.dev_addr), //it gives device Unique ID in the database
   );
 
@@ -72,10 +81,15 @@ export const POST = async (req) => {
       }
     }
 
-    const decodedPayload = event?.uplink_message?.decoded_payload || {};
+    const decodedPayload =
+      event?.uplink_message?.decoded_payload ||
+      event?.decoded_payload ||
+      body?.decoded_payload ||
+      body?.data ||
+      body;
     const deviceIds = event?.end_device_ids || {};
 
-    const unique_id = resolveUniqueId(decodedPayload, deviceIds);
+    const unique_id = resolveUniqueId(decodedPayload, deviceIds, body);
 
     if (!unique_id) {
       return new Response(
@@ -87,18 +101,30 @@ export const POST = async (req) => {
       );
     }
 
-    const battery = firstDefined(decodedPayload.battery, decodedPayload.batt);
-    const level = firstDefined(decodedPayload.level, decodedPayload.distance);
-    const reception = firstDefined(
+    const battery = parseNumberCandidate(
+      firstDefined(decodedPayload.battery, decodedPayload.batt),
+    );
+    const level = parseNumberCandidate(
+      firstDefined(decodedPayload.level, decodedPayload.distance),
+    );
+    const reception = parseNumberCandidate(
       decodedPayload.reception,
       event?.uplink_message?.rx_metadata?.[0]?.rssi,
     );
-    const temp = firstDefined(decodedPayload.temp, decodedPayload.temperature);
-    const humidity = decodedPayload.humidity;
-    const bin_height = decodedPayload.bin_height;
-    const h2s = firstDefined(decodedPayload.h2s, decodedPayload.h2s_ppm);
-    const smoke = firstDefined(decodedPayload.smoke, decodedPayload.smoke_ppm);
-    const nh3 = firstDefined(decodedPayload.nh3, decodedPayload.nh3_ppm);
+    const temp = parseNumberCandidate(
+      firstDefined(decodedPayload.temp, decodedPayload.temperature),
+    );
+    const humidity = parseNumberCandidate(decodedPayload.humidity);
+    const bin_height = parseNumberCandidate(decodedPayload.bin_height);
+    const h2s = parseNumberCandidate(
+      firstDefined(decodedPayload.h2s, decodedPayload.h2s_ppm),
+    );
+    const smoke = parseNumberCandidate(
+      firstDefined(decodedPayload.smoke, decodedPayload.smoke_ppm),
+    );
+    const nh3 = parseNumberCandidate(
+      firstDefined(decodedPayload.nh3, decodedPayload.nh3_ppm),
+    );
     const receivedAt = new Date();
 
     const updateFields = {};
@@ -131,7 +157,16 @@ export const POST = async (req) => {
     if (Object.keys(weatherUpdateFields).length > 0) {
       weatherUpdateFields.timestamp = receivedAt;
 
-      const weatherDeviceData = await getWeatherDeviceById(unique_id);
+      let weatherDeviceData;
+      try {
+        weatherDeviceData = await getWeatherDeviceById(unique_id);
+      } catch (error) {
+        if (error.message === "Weather device not found") {
+          weatherDeviceData = null;
+        } else {
+          throw error;
+        }
+      }
 
       if (!weatherDeviceData) {
         await insertNewWeatherDevice({
