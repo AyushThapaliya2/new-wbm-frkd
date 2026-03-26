@@ -4,9 +4,11 @@
 export const convertLevelToPercentage = (devices) => {
     let tmpDevices = devices.map((device) => {
       let distanceInCM = device.level;
-      let binHeight = device.bin_height;
-      let trashHeight = binHeight - distanceInCM;
-      device.level = parseInt((trashHeight * 100) / binHeight);
+      let totalSensorToBottom = device.bin_height;
+      let fillableDepth = 70;
+      let trashHeight = totalSensorToBottom - distanceInCM;
+      let levelInPercents = Math.round((trashHeight * 100) / fillableDepth);
+      device.level = Math.max(0, Math.min(100, levelInPercents));
       device.lat = parseFloat(device.lat);
       device.lng = parseFloat(device.lng);
       return device;

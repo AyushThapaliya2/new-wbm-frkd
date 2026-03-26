@@ -218,9 +218,13 @@ export const POST = async (req) => {
       isValidNumber(deviceData.bin_height) &&
       Number(deviceData.bin_height) !== 0
     ) {
-      const binHeight = Number(deviceData.bin_height);
-      const trashHeight = binHeight - Number(level);
-      const level_in_percents = parseInt((trashHeight * 100) / binHeight, 10);
+      const totalSensorToBottom = Number(deviceData.bin_height);
+      const fillableDepth = 70;
+      const measuredDistance = Number(level);
+      const trashHeight = totalSensorToBottom - measuredDistance;
+
+      let level_in_percents = Math.round((trashHeight * 100) / fillableDepth);
+      level_in_percents = Math.max(0, Math.min(100, level_in_percents));
 
       const historicalData = {
         unique_id,

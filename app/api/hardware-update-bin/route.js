@@ -35,7 +35,7 @@ export const POST = async (req) => {
   if (token !== secretToken) {
     return new Response(
       JSON.stringify({ status: 0, msg: "Unauthorized request: TOKEN INVALID" }),
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -45,7 +45,7 @@ export const POST = async (req) => {
         status: 0,
         msg: "Invalid input: unique_id is required",
       }),
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -66,7 +66,7 @@ export const POST = async (req) => {
   if (Object.keys(updateFields).length === 0) {
     return new Response(
       JSON.stringify({ status: 0, msg: "No valid fields provided for update" }),
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -107,15 +107,21 @@ export const POST = async (req) => {
           msg: "New device inserted with is_registered set to false",
           data: newDeviceData,
         }),
-        { status: 200 }
+        { status: 200 },
       );
     }
 
-    // ORIGINAL FILL% LOGIC (unchanged):
-    // uses stored device bin_height and the incoming `level`
-    const binHeight = deviceData.bin_height;
-    const trashHeight = binHeight - level;
-    const level_in_percents = parseInt((trashHeight * 100) / binHeight);
+    // Bin geometry for this hardware:
+    // - database bin_height stays at 100 cm
+    // - fillable trash depth is 70 cm
+    // - top buffer from sensor to trash start is 30 cm
+    const totalSensorToBottom = Number(deviceData.bin_height);
+    const fillableDepth = 70;
+    const measuredDistance = Number(level);
+    const trashHeight = totalSensorToBottom - measuredDistance;
+
+    let level_in_percents = Math.round((trashHeight * 100) / fillableDepth);
+    level_in_percents = Math.max(0, Math.min(100, level_in_percents));
 
     const updateData = await updateDeviceHardware(unique_id, updateFields);
 
@@ -143,7 +149,7 @@ export const POST = async (req) => {
         msg: "Device information updated and saved to historical",
         data: updateData,
       }),
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error("Error processing request:", error.message);
@@ -153,7 +159,7 @@ export const POST = async (req) => {
         msg: "Internal Server Error",
         error: error.message,
       }),
-      { status: 500 }
+      { status: 500 },
     );
   }
 };
