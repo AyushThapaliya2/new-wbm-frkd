@@ -32,28 +32,35 @@ const parseNumberCandidate = (value) => {
 
 const parseIntegerCandidate = (value) => {
   if (value === undefined || value === null) return null;
-  const parsed = Number.parseInt(String(value), 10);
+  const normalized = String(value).trim();
+  if (!/^-?\d+$/.test(normalized)) return null;
+  const parsed = Number.parseInt(normalized, 10);
   if (!Number.isFinite(parsed)) return null;
   return parsed;
 };
 
-const parseHexToInteger = (value) => {
-  if (!value) return null;
-  const cleaned = String(value).replace(/^0x/i, "");
-  if (!/^[0-9a-fA-F]+$/.test(cleaned)) return null;
-  const parsed = Number.parseInt(cleaned, 16);
-  if (!Number.isFinite(parsed)) return null;
-  return parsed;
+const hashStableIdentifier = (value) => {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).trim();
+  if (!normalized) return null;
+
+  let hash = 0;
+  for (const char of normalized) {
+    hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  }
+
+  return hash === 0 ? 1 : hash;
 };
 
 const resolveUniqueId = (decodedPayload, deviceIds, body) =>
   firstDefined(
     parseIntegerCandidate(decodedPayload.unique_id),
     parseIntegerCandidate(decodedPayload.device_id),
-    parseIntegerCandidate(deviceIds.device_id),
     parseIntegerCandidate(body?.unique_id),
     parseIntegerCandidate(body?.device_id),
-    parseHexToInteger(deviceIds.dev_addr), //it gives device Unique ID in the database
+    parseIntegerCandidate(deviceIds.device_id),
+    hashStableIdentifier(deviceIds.dev_eui),
+    hashStableIdentifier(deviceIds.device_id),
   );
 
 export const POST = async (req) => {
@@ -91,11 +98,11 @@ export const POST = async (req) => {
 
     const unique_id = resolveUniqueId(decodedPayload, deviceIds, body);
 
-    if (!unique_id) {
+    if (unique_id === null || unique_id === undefined) {
       return new Response(
         JSON.stringify({
           status: 0,
-          msg: "Invalid TTN payload: provide numeric unique_id in decoded_payload or a valid dev_addr",
+          msg: "Invalid TTN payload: provide numeric unique_id or a stable TTN dev_eui/device_id",
         }),
         { status: 400 },
       );
