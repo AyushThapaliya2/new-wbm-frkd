@@ -16,6 +16,10 @@ export default function Home() {
   const [recentFeedback, setRecentFeedback] = useState([]);
   const [recentRoutes, setRecentRoutes] = useState([]);
   const [chartData, setChartData] = useState({ labels: [], datasets: [] });
+  const [trainingModelType, setTrainingModelType] = useState('logistic');
+  const [trainingModelName, setTrainingModelName] = useState('pickup_in_12h_v2');
+  const [isTraining, setIsTraining] = useState(false);
+  const [trainingStatus, setTrainingStatus] = useState(null);
 
   useEffect(() => {
     if (!session) {
@@ -117,6 +121,37 @@ export default function Home() {
     onClick: () => router.push('/historical-data') // Redirect to historical data page on click
   };
 
+  const handleTrainModel = async () => {
+    setIsTraining(true);
+    setTrainingStatus(null);
+
+    try {
+      const endpoint = trainingModelType === 'nb' ? '/api/priority-train-nb' : '/api/priority-train';
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model_name: trainingModelName.trim() || 'pickup_in_12h_v2' }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || data?.ok === false || data?.error) {
+        throw new Error(data?.error || 'Failed to train model');
+      }
+
+      setTrainingStatus({
+        type: 'success',
+        message: `Model ${data.model} trained with ${data.n_rows} rows.`,
+      });
+    } catch (error) {
+      setTrainingStatus({
+        type: 'error',
+        message: String(error?.message || error),
+      });
+    } finally {
+      setIsTraining(false);
+    }
+  };
+
   return (
     <div className="mx-auto p-6 bg-gray-100 rounded-lg shadow-md text-gray-800 font-sans">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -145,6 +180,58 @@ export default function Home() {
           <h2 className="text-2xl font-bold mb-4">Bin Levels Over Time</h2>
           <div className="relative h-96">
             <ChartComponent type="line" data={chartData} options={chartOptions} />
+          </div>
+          <div className="mt-4 bg-white p-4 rounded-lg shadow-md">
+            <h3 className="text-xl font-bold mb-2">ML Model Training</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Train a pickup-priority model from the historical bin data stored in the system.
+            </p>
+            <div className="flex flex-col md:flex-row md:items-end gap-3">
+              <div>
+                <label className="block text-sm text-gray-700 mb-1">Model Type</label>
+                <select
+                  value={trainingModelType}
+                  onChange={(e) => setTrainingModelType(e.target.value)}
+                  className="p-2 border border-gray-300 rounded w-full md:w-44"
+                >
+                  <option value="logistic">Logistic</option>
+                  <option value="nb">Naive Bayes</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-700 mb-1">Model Name</label>
+                <input
+                  value={trainingModelName}
+                  onChange={(e) => setTrainingModelName(e.target.value)}
+                  className="p-2 border border-gray-300 rounded w-full md:w-64"
+                  placeholder="pickup_in_12h_v2"
+                />
+              </div>
+              <button
+                onClick={handleTrainModel}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300"
+                disabled={isTraining}
+              >
+                {isTraining ? 'Training...' : 'Train Model'}
+              </button>
+              <button
+                onClick={() => router.push('/pickup-list')}
+                className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-800"
+              >
+                View Priorities
+              </button>
+            </div>
+            {trainingStatus && (
+              <div
+                className={`mt-3 rounded p-3 text-sm ${
+                  trainingStatus.type === 'success'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                }`}
+              >
+                {trainingStatus.message}
+              </div>
+            )}
           </div>
         </div>
       ) : (

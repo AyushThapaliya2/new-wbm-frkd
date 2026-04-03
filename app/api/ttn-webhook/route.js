@@ -52,16 +52,46 @@ const hashStableIdentifier = (value) => {
   return hash === 0 ? 1 : hash;
 };
 
-const resolveUniqueId = (decodedPayload, deviceIds, body) =>
-  firstDefined(
+const parseHexToInteger = (value) => {
+  if (!value) return null;
+  const cleaned = String(value).replace(/^0x/i, "");
+  if (!/^[0-9a-fA-F]+$/.test(cleaned)) return null;
+  const parsed = Number.parseInt(cleaned, 16);
+  if (!Number.isFinite(parsed)) return null;
+  return parsed;
+};
+
+const buildUniqueIdCandidates = (decodedPayload, deviceIds, body) =>
+  [
     parseIntegerCandidate(decodedPayload.unique_id),
     parseIntegerCandidate(decodedPayload.device_id),
     parseIntegerCandidate(body?.unique_id),
     parseIntegerCandidate(body?.device_id),
     parseIntegerCandidate(deviceIds.device_id),
+    parseHexToInteger(deviceIds.dev_addr),
     hashStableIdentifier(deviceIds.dev_eui),
     hashStableIdentifier(deviceIds.device_id),
+  ].filter((value, index, values) =>
+    value !== null && value !== undefined && values.indexOf(value) === index,
   );
+
+const findExistingUniqueId = async (candidates, fetcher) => {
+  for (const candidate of candidates) {
+    try {
+      const record = await fetcher(candidate);
+      if (record) return candidate;
+    } catch (error) {
+      if (
+        error.message !== "Device not found" &&
+        error.message !== "Weather device not found"
+      ) {
+        throw error;
+      }
+    }
+  }
+
+  return null;
+};
 
 export const POST = async (req) => {
   try {
@@ -96,7 +126,23 @@ export const POST = async (req) => {
       body;
     const deviceIds = event?.end_device_ids || {};
 
-    const unique_id = resolveUniqueId(decodedPayload, deviceIds, body);
+    const uniqueIdCandidates = buildUniqueIdCandidates(
+      decodedPayload,
+      deviceIds,
+      body,
+    );
+    const existingDeviceId = await findExistingUniqueId(
+      uniqueIdCandidates,
+      getDeviceById,
+    );
+    const existingWeatherDeviceId = await findExistingUniqueId(
+      uniqueIdCandidates,
+      getWeatherDeviceById,
+    );
+    const unique_id =
+      existingDeviceId ??
+      existingWeatherDeviceId ??
+      firstDefined(...uniqueIdCandidates);
 
     if (unique_id === null || unique_id === undefined) {
       return new Response(
