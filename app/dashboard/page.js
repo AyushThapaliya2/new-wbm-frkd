@@ -140,7 +140,7 @@ export default function Home() {
 
       setTrainingStatus({
         type: 'success',
-        message: `Model ${data.model} trained with ${data.n_rows} rows.`,
+        message: `Model ${data.model} trained with ${Number(data.n_rows ?? 0).toLocaleString()} trainable rows out of ${Number(data.total_historical_rows ?? 0).toLocaleString()} historical rows.`,
       });
     } catch (error) {
       setTrainingStatus({

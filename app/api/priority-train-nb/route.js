@@ -46,6 +46,7 @@ export async function POST(req) {
 
   const X = [];
   const y = [];
+  let total_historical_rows = 0;
 
   for (const d of dev.data ?? []) {
     const hist = await sb
@@ -58,6 +59,7 @@ export async function POST(req) {
 
     if (hist.error) continue;
     const H = hist.data ?? [];
+    total_historical_rows += H.length;
     if (H.length < DEF.min_rows_per_bin) continue;
 
     for (let i = 2; i < H.length - 2; i++) {
@@ -158,6 +160,7 @@ export async function POST(req) {
       ok: true,
       model: model_name,
       n_rows: X.length,
+      total_historical_rows,
       features,
       meta: fit.meta,
     }),
