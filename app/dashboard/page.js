@@ -140,7 +140,10 @@ export default function Home() {
 
       setTrainingStatus({
         type: 'success',
-        message: `Model ${data.model} trained with ${Number(data.n_rows ?? 0).toLocaleString()} trainable rows out of ${Number(data.total_historical_rows ?? 0).toLocaleString()} historical rows.`,
+        message:
+          data?.total_historical_rows != null
+            ? `Model ${data.model} was trained using ${Number(data.n_rows ?? 0).toLocaleString()} trainable examples derived from ${Number(data.eligible_historical_rows ?? 0).toLocaleString()} eligible historical records, out of ${Number(data.total_historical_rows ?? 0).toLocaleString()} total historical records in the database.`
+            : `Model ${data.model} was trained using ${Number(data.n_rows ?? 0).toLocaleString()} trainable examples derived from ${Number(data.eligible_historical_rows ?? 0).toLocaleString()} eligible historical records.`,
       });
     } catch (error) {
       setTrainingStatus({
