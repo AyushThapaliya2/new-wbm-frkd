@@ -7,6 +7,7 @@ import { fetchUserDetails, fetchBinDevices, fetchWeatherDevices, updateDeviceSof
 import dynamic from 'next/dynamic';
 import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
 import { FaTrash, FaSun } from 'react-icons/fa';
+import { formatBinIdentity } from '@/utils/deviceHelpers';
 
 const MapView = dynamic(() => import('@/components/MapView'), { ssr: false });
 
@@ -189,7 +190,9 @@ export default function UpdateDevicesPage() {
               <option value="">{devices.length > 0 ? "Select a device to update" : "No devices to update"}</option>
               {devices.map((device) => (
                 <option key={device.id} value={device.unique_id}>
-                  ID: {device.unique_id}, Battery: {device.battery}%, Level: {device.level}%
+                  {deviceType === 'bin'
+                    ? `${formatBinIdentity(device)}, Battery: ${device.battery}%, Level: ${device.level}%`
+                    : `ID: ${device.unique_id}, Battery: ${device.battery}%, Level: ${device.level}%`}
                 </option>
               ))}
             </select>

@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { fetchUserDetails, fetchBinDevices, fetchWeatherDevices, fetchFeedbacks, addFeedback, updateFeedback } from '@/lib/dataProvider';
 import { FaTrash, FaSun } from 'react-icons/fa';
 import { subscribeToTableChanges } from '@/lib/realtimeSubscription';
+import { formatBinIdentity } from '@/utils/deviceHelpers';
 
 export default function FeedbackPage() {
   const { session } = useAuth();
@@ -218,7 +219,9 @@ export default function FeedbackPage() {
               <option value="">Select the device to report</option>
               {devices.map((device) => (
                 <option key={device.id} value={device.unique_id}>
-                  ID: {device.unique_id}, Battery: {device.battery}%, Level: {device.level}%
+                  {deviceType === 'waste bins'
+                    ? `${formatBinIdentity(device)}, Battery: ${device.battery}%, Level: ${device.level}%`
+                    : `ID: ${device.unique_id}, Battery: ${device.battery}%, Level: ${device.level}%`}
                 </option>
               ))}
             </select>

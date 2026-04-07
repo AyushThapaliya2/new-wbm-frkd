@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { GoogleMap, Marker, InfoWindow, DirectionsRenderer, useLoadScript } from '@react-google-maps/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBatteryQuarter, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { formatBinIdentity } from '@/utils/deviceHelpers';
 
 const mapCenter = { lat: 34.242245312686954, lng: -118.53043313617162 };
 const mapOptions = {
@@ -186,7 +187,12 @@ const MapView = ({ devices, directions = null, mapWidth = '100%', mapHeight = '8
                 >
                   <div className="p-2 bg-white rounded shadow-md">
                     {renderStatusIcons(device.level, device.battery)}
-                    <p className="font-bold">ID: {device.unique_id}</p>
+                    <p className="font-bold">
+                      {deviceType === 'bins' ? formatBinIdentity(device) : `ID: ${device.unique_id}`}
+                    </p>
+                    {deviceType === 'bins' && device.bin_color && (
+                      <p>Bin color: {device.bin_color}</p>
+                    )}
                     <p>Battery: {device.battery}%</p>
                     {deviceType === 'bins' && (
                       <>

@@ -83,7 +83,16 @@ function ListView({ devices, deviceType }) {
               <td className="p-2 md:border md:border-gray-400 text-left block md:table-cell">
                 <div className="flex items-center">
                   <span className={`w-4 h-4 mr-2 ${getIndicatorColor(device.level, device.battery)}`}></span>
-                  {device.unique_id}
+                  <div>
+                    <div>{device.unique_id}</div>
+                    {deviceType === 'bins' && (device.bin_label || device.waste_stream || device.bin_color) && (
+                      <div className="text-xs text-gray-600">
+                        {[device.bin_label, device.waste_stream, device.bin_color]
+                          .filter(Boolean)
+                          .join(' • ')}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </td>
               {deviceType === 'bins' && (

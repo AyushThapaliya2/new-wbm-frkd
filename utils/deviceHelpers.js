@@ -23,3 +23,23 @@ export const pickDevicesWithIssues = (devices) => {
   });
   return tmpDevices;
 };
+
+export const formatBinIdentity = (device) => {
+  if (!device) return 'Unknown bin';
+
+  const parts = [];
+
+  if (device.bin_label) {
+    parts.push(device.bin_label);
+  }
+
+  if (device.unique_id !== undefined && device.unique_id !== null) {
+    parts.push(`ID: ${device.unique_id}`);
+  }
+
+  if (device.waste_stream) {
+    parts.push(device.waste_stream);
+  }
+
+  return parts.length ? parts.join(' • ') : 'Unknown bin';
+};
