@@ -23,6 +23,11 @@ function pct100(val) {
   return Number.isFinite(n) ? `${Math.round(n)}%` : '-';
 }
 
+function sensorWithBand(value, band, digits = 1) {
+  const base = num(value, digits);
+  return band ? `${base} (${band})` : base;
+}
+
 export default function PickupListPage() {
   const { session } = useAuth();
   const router = useRouter();
@@ -162,12 +167,13 @@ export default function PickupListPage() {
               <th className="text-left p-3">H2S</th>
               <th className="text-left p-3">NH3</th>
               <th className="text-left p-3">Smoke</th>
+              <th className="text-left p-3">Reason</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && !loading ? (
               <tr>
-                <td className="p-3 text-gray-500" colSpan={10}>
+                <td className="p-3 text-gray-500" colSpan={11}>
                   No priority data yet. Run training and prediction first.
                 </td>
               </tr>
@@ -181,9 +187,10 @@ export default function PickupListPage() {
                   <td className="p-3">{pct100(r.level_pct)}</td>
                   <td className="p-3">{num(r.fill_rate)}</td>
                   <td className="p-3">{num(r.smell_risk, 0)}</td>
-                  <td className="p-3">{num(r.h2s, 1)}</td>
-                  <td className="p-3">{num(r.nh3, 1)}</td>
-                  <td className="p-3">{num(r.smoke, 1)}</td>
+                  <td className="p-3">{sensorWithBand(r.h2s, r.h2s_band)}</td>
+                  <td className="p-3">{sensorWithBand(r.nh3, r.nh3_band)}</td>
+                  <td className="p-3">{sensorWithBand(r.smoke, r.smoke_band)}</td>
+                  <td className="p-3">{r.primary_reason ?? '-'}</td>
                 </tr>
               ))
             )}

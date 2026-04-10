@@ -2,6 +2,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { gnbPredictProba } from "@/lib/ml_naive_bayes.js";
 import {
+  gasBands,
   slopePcts,
   summarizeGas,
   hoursSinceLastEmpty,
@@ -56,6 +57,16 @@ function criticalFlags({ smoke = 0, nh3 = 0, h2s = 0, level_pct }) {
     fillCritical,
     criticalGasCount,
   };
+}
+
+function primaryReason({ flags, prob, gasScore, fillScore }) {
+  if (flags.smokeCritical) return "Critical smoke level";
+  if (flags.criticalGasCount >= 2) return "Multiple gases at critical levels";
+  if (flags.fillCritical) return "Bin is critically full";
+  if (prob >= 0.75) return "High predicted pickup risk";
+  if (gasScore >= 0.6) return "High gas severity";
+  if (fillScore >= 0.8) return "High fill level";
+  return "Moderate combined urgency";
 }
 
 export async function POST(req) {
@@ -189,6 +200,7 @@ export async function POST(req) {
 
       feat.time_since_empty_h = hoursSinceLastEmpty(H);
       feat.smell_risk = smellRisk(feat);
+      const bands = gasBands(feat);
 
       // Only model features
       const modelRow = {};
@@ -203,11 +215,12 @@ export async function POST(req) {
         h2s: feat.h2s,
       });
       const fillScore = Math.max(0, Math.min(1, level_pct / 100));
+      const safeProb = Math.max(0, Math.min(1, prob));
       let ops_priority = Math.max(
         0,
         Math.min(
           1,
-          RULES.W_PROB * prob +
+          RULES.W_PROB * safeProb +
             RULES.W_GAS * gasScore +
             RULES.W_FILL * fillScore
         )
@@ -226,6 +239,13 @@ export async function POST(req) {
       if (flags.fillCritical)
         ops_priority = Math.max(ops_priority, RULES.MIN_FOR_FILL_CRITICAL);
 
+      const reason = primaryReason({
+        flags,
+        prob: safeProb,
+        gasScore,
+        fillScore,
+      });
+
       rows.push({
         unique_id: d.unique_id,
         level_pct,
@@ -234,8 +254,13 @@ export async function POST(req) {
         nh3: feat.nh3,
         h2s: feat.h2s,
         smell_risk: Math.round(feat.smell_risk),
-        prob_pickup_in_T_hours: Math.max(0, Math.min(1, prob)),
+        prob_pickup_in_T_hours: safeProb,
         ops_priority: Math.max(0, Math.min(1, ops_priority)),
+        gas_score: gasScore,
+        fill_score: fillScore,
+        ...bands,
+        critical_flags: flags,
+        primary_reason: reason,
         model_used: model_name,
       });
     }
