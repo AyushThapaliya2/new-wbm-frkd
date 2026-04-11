@@ -1,6 +1,7 @@
 // app/api/priority-train/route.js
 import { createClient } from "@supabase/supabase-js";
 import { logisticFit } from "@/lib/ml_logistic.js";
+import { fetchAllHistoricalForDevice } from "@/lib/supabasePaging.js";
 import {
   slopePcts,
   hoursSinceLastEmpty,
@@ -61,13 +62,7 @@ export async function POST(req) {
   let eligible_historical_rows = 0;
 
   for (const d of dev.data ?? []) {
-    const hist = await sb
-      .from("historical")
-      .select(
-        "unique_id, level_in_percents, saved_time, temp, humidity, h2s, nh3, smoke"
-      )
-      .eq("unique_id", d.unique_id)
-      .order("saved_time", { ascending: true });
+    const hist = await fetchAllHistoricalForDevice(sb, d.unique_id);
 
     if (hist.error) continue;
     const H = hist.data ?? [];
