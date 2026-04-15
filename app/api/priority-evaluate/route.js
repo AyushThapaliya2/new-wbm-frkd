@@ -20,7 +20,7 @@ const sb = createClient(
 const DEF = {
   T_hours: 6,
   window_hours: 6,
-  full_threshold: 85,
+  full_threshold: 92,
   smell_threshold: 600,
   min_rows_per_bin: 8,
   test_ratio: 0.2,
