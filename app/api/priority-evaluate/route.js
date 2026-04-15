@@ -14,11 +14,14 @@ const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
+// smell_threshold is in raw smellRisk units (NOT 0-100).
+// Max possible smellRisk ≈ 1196 (H2S=50, NH3=300, smoke=1000 ppm at max).
+// 600 ≈ 50% of max — genuinely elevated odor level.
 const DEF = {
-  T_hours: 12,
+  T_hours: 6,
   window_hours: 6,
-  full_threshold: 80,
-  smell_threshold: 50,
+  full_threshold: 85,
+  smell_threshold: 600,
   min_rows_per_bin: 8,
   test_ratio: 0.2,
 };

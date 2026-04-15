@@ -13,11 +13,15 @@ const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
+// smellRisk formula: 4*h2s + 2.5*nh3 + 0.2*smoke + temp_factor + humidity_factor
+// Max possible (H2S=50ppm, NH3=300ppm, smoke=1000ppm): ~1196
+// smell_threshold=600 ≈ 50% of max — represents a bin with genuinely elevated odor.
+// (Original threshold of 50 was a unit mismatch bug: smellRisk is NOT on a 0-100 scale.)
 const DEF = {
-  T_hours: 12,
+  T_hours: 6,
   window_hours: 6,
-  full_threshold: 80,
-  smell_threshold: 50,
+  full_threshold: 85,
+  smell_threshold: 600,
   min_rows_per_bin: 8,
 };
 
