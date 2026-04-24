@@ -1,26 +1,24 @@
-'use client';
+"use client";
 
-// added by ayush: pickup priority list page (non-invasive, standalone route)
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
-
-const DEFAULT_MODEL = 'pickup_in_12h_v2';
+const DEFAULT_MODEL = "pickup_in_12h_v2";
 
 function num(val, digits = 2) {
   const n = Number(val);
-  return Number.isFinite(n) ? n.toFixed(digits) : '-';
+  return Number.isFinite(n) ? n.toFixed(digits) : "-";
 }
 
 function pct01(val) {
   const n = Number(val);
-  return Number.isFinite(n) ? `${Math.round(n * 100)}%` : '-';
+  return Number.isFinite(n) ? `${Math.round(n * 100)}%` : "-";
 }
 
 function pct100(val) {
   const n = Number(val);
-  return Number.isFinite(n) ? `${Math.round(n)}%` : '-';
+  return Number.isFinite(n) ? `${Math.round(n)}%` : "-";
 }
 
 function sensorWithBand(value, band, digits = 1) {
@@ -33,36 +31,39 @@ export default function PickupListPage() {
   const router = useRouter();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [meta, setMeta] = useState(null);
-  const [modelType, setModelType] = useState('logistic');
+  const [modelType, setModelType] = useState("logistic");
   const [modelName, setModelName] = useState(DEFAULT_MODEL);
-  const [windowHours, setWindowHours] = useState('');
+  const [windowHours, setWindowHours] = useState("");
 
   useEffect(() => {
     if (!session) {
-      router.push('/login');
+      router.push("/login");
     } else {
-      router.push('/pickup-list');
+      router.push("/pickup-list");
     }
   }, [session, router]);
 
   const refresh = async () => {
     setLoading(true);
-    setError('');
+    setError("");
     try {
-      const endpoint = modelType === 'nb' ? '/api/predict-priority-nb' : '/api/predict-priority';
+      const endpoint =
+        modelType === "nb"
+          ? "/api/predict-priority-nb"
+          : "/api/predict-priority";
       const payload = { model_name: modelName };
-      if (windowHours !== '') payload.window_hours = Number(windowHours);
+      if (windowHours !== "") payload.window_hours = Number(windowHours);
 
       const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok || data?.ok === false) {
-        throw new Error(data?.error || 'Failed to load priorities');
+        throw new Error(data?.error || "Failed to load priorities");
       }
       setRows(Array.isArray(data?.ranked) ? data.ranked : []);
       setMeta({
@@ -134,7 +135,7 @@ export default function PickupListPage() {
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             disabled={loading}
           >
-            {loading ? 'Loading...' : 'Refresh'}
+            {loading ? "Predicting..." : "Predict"}
           </button>
         </div>
       </div>
@@ -148,8 +149,8 @@ export default function PickupListPage() {
       {meta && (
         <div className="text-sm text-gray-700 mb-3">
           <span className="mr-4">Model: {meta.model_name}</span>
-          <span className="mr-4">T_hours: {meta.T_hours ?? '-'}</span>
-          <span>Window: {meta.window_hours ?? '-'}h</span>
+          <span className="mr-4">T_hours: {meta.T_hours ?? "-"}</span>
+          <span>Window: {meta.window_hours ?? "-"}h</span>
         </div>
       )}
 
@@ -181,7 +182,7 @@ export default function PickupListPage() {
               rows.map((r, i) => (
                 <tr key={r.unique_id ?? i} className="border-b last:border-b-0">
                   <td className="p-3">{i + 1}</td>
-                  <td className="p-3">{r.unique_id ?? '-'}</td>
+                  <td className="p-3">{r.unique_id ?? "-"}</td>
                   <td className="p-3 font-semibold">{pct01(r.ops_priority)}</td>
                   <td className="p-3">{pct01(r.prob_pickup_in_T_hours)}</td>
                   <td className="p-3">{pct100(r.level_pct)}</td>
@@ -189,8 +190,10 @@ export default function PickupListPage() {
                   <td className="p-3">{num(r.smell_risk, 0)}</td>
                   <td className="p-3">{sensorWithBand(r.h2s, r.h2s_band)}</td>
                   <td className="p-3">{sensorWithBand(r.nh3, r.nh3_band)}</td>
-                  <td className="p-3">{sensorWithBand(r.smoke, r.smoke_band)}</td>
-                  <td className="p-3">{r.primary_reason ?? '-'}</td>
+                  <td className="p-3">
+                    {sensorWithBand(r.smoke, r.smoke_band)}
+                  </td>
+                  <td className="p-3">{r.primary_reason ?? "-"}</td>
                 </tr>
               ))
             )}
