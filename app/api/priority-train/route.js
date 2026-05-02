@@ -1,6 +1,7 @@
 // app/api/priority-train/route.js
 import { createClient } from "@supabase/supabase-js";
-import { logisticFit } from "@/lib/ml_logistic.js";
+import { logisticFit, logisticPredict } from "@/lib/ml_logistic.js";
+import { binaryMetrics } from "@/lib/ml_metrics.js";
 import {
   slopePcts,
   hoursSinceLastEmpty,
@@ -152,6 +153,11 @@ export async function POST(req) {
     lambda: 0.5,
   });
 
+  // evaluate recall on a chronological 20% holdout
+  const splitAt  = Math.floor(X.length * 0.8);
+  const probs    = X.slice(splitAt).map((row) => logisticPredict(row, fit));
+  const { recall } = binaryMetrics(y.slice(splitAt), probs, 0.5);
+
   // 4) persist
   const save = await sb.from("priority_weights").upsert({
     model: model_name,
@@ -168,6 +174,7 @@ export async function POST(req) {
       smell_threshold,
       trained_on: new Date().toISOString(),
       y_rate: y.reduce((a, b) => a + b, 0) / y.length,
+      recall,
     },
   });
 

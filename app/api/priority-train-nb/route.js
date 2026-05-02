@@ -1,6 +1,7 @@
 // app/api/priority-train-nb/route.js
 import { createClient } from "@supabase/supabase-js";
-import { gnbFit } from "@/lib/ml_naive_bayes.js";
+import { gnbFit, gnbPredictProba } from "@/lib/ml_naive_bayes.js";
+import { binaryMetrics } from "@/lib/ml_metrics.js";
 import {
   slopePcts,
   hoursSinceLastEmpty,
@@ -144,11 +145,14 @@ export async function POST(req) {
   // Train Gaussian NB
   const fit = gnbFit(X, y, features);
 
+  // evaluate recall on a chronological 20% holdout
+  const splitAt = Math.floor(X.length * 0.8);
+  const probs   = X.slice(splitAt).map((row) => gnbPredictProba(row, fit));
+  const { recall } = binaryMetrics(y.slice(splitAt), probs, 0.5);
+
   // Store model in the SAME table you already use, keyed by model name.
-  // We'll put params under weights/bias with a recognizable structure.
   const save = await sb.from("priority_weights").upsert({
     model: model_name,
-    // For consistency with existing schema:
     weights: { mean: fit.mean, variance: fit.variance, priors: fit.priors },
     bias: 0, // unused by NB
     meta: {
@@ -160,6 +164,7 @@ export async function POST(req) {
       smell_threshold,
       trained_on: new Date().toISOString(),
       y_rate: y.reduce((a, b) => a + b, 0) / y.length,
+      recall,
     },
   });
   if (save.error)
