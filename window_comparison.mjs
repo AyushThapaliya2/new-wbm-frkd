@@ -1,13 +1,15 @@
 /**
  * window_comparison.mjs
  *
- * Proves why 6-hour windows outperform 10h, 12h, and 24h windows.
+ * Compares 6-hour windows against 10h, 12h, and 24h windows.
  * Run from the project directory:
  *   node window_comparison.mjs
  *
  * Tests every combination of (lookback_hours, lookahead_hours):
  *   (6,6)  (10,10)  (12,12)  (24,24)
- * Trains logistic regression on 80%, tests on 20% (chronological per device).
+ * Trains both production feature sets on 80%, tests on 20% (chronological per device):
+ *   - Logistic Regression: 9 features (same as app/api/priority-train/route.js)
+ *   - Gaussian Naive Bayes: 8 features (same as app/api/priority-train-nb/route.js)
  * Prints a side-by-side metrics table.
  */
 
@@ -31,6 +33,29 @@ const CONFIGS = [
   { label: "10h / 10h",  lookback: 10, lookahead: 10 },
   { label: "12h / 12h",  lookback: 12, lookahead: 12 },
   { label: "24h / 24h",  lookback: 24, lookahead: 24 },
+];
+
+const LR_FEATURES = [
+  "level_in_percents",
+  "fill_rate",
+  "temp",
+  "humidity",
+  "h2s_max_h",
+  "nh3_max_h",
+  "smoke_max_h",
+  "time_since_empty_h",
+  "smell_risk",
+];
+
+const NB_FEATURES = [
+  "level_in_percents",
+  "fill_rate",
+  "temp",
+  "humidity",
+  "h2s_max_h",
+  "nh3_max_h",
+  "smoke_max_h",
+  "time_since_empty_h",
 ];
 
 // ─── Feature engineering (inlined from lib/features.js) ──────────────────────
@@ -176,6 +201,85 @@ function logisticPredict(row, fit) {
   return sigmoid(z);
 }
 
+// ─── Gaussian Naive Bayes (inlined from lib/ml_naive_bayes.js) ───────────────
+
+function safeVar(v) {
+  const EPS = 1e-6;
+  return v > EPS ? v : EPS;
+}
+
+function gnbFit(X, y, features) {
+  if (!Array.isArray(X) || !X.length) throw new Error("No rows to fit");
+  if (X.length !== y.length) throw new Error("X/y length mismatch");
+
+  const classes = [0, 1];
+  const counts = { 0: 0, 1: 0 };
+  const sum = { 0: {}, 1: {} };
+  const sumsq = { 0: {}, 1: {} };
+
+  for (const c of classes) {
+    for (const f of features) {
+      sum[c][f] = 0;
+      sumsq[c][f] = 0;
+    }
+  }
+
+  for (let i = 0; i < X.length; i++) {
+    const c = Number(y[i]) === 1 ? 1 : 0;
+    counts[c] += 1;
+    for (const f of features) {
+      const v = Number(X[i][f] ?? 0);
+      sum[c][f] += v;
+      sumsq[c][f] += v * v;
+    }
+  }
+
+  const priors = {
+    0: counts[0] / Math.max(1, X.length),
+    1: counts[1] / Math.max(1, X.length),
+  };
+  const mean = { 0: {}, 1: {} };
+  const variance = { 0: {}, 1: {} };
+
+  for (const c of classes) {
+    const n = Math.max(1, counts[c]);
+    for (const f of features) {
+      const m = sum[c][f] / n;
+      const v = sumsq[c][f] / n - m * m;
+      mean[c][f] = m;
+      variance[c][f] = safeVar(v);
+    }
+  }
+
+  return { classes, priors, mean, variance, meta: { features, kind: "gaussian_nb" } };
+}
+
+function logGauss(x, mu, varv) {
+  const v = safeVar(varv);
+  const diff = x - mu;
+  return -0.5 * (Math.log(2 * Math.PI * v) + (diff * diff) / v);
+}
+
+function gnbPredictProba(row, fit) {
+  const { classes, priors, mean, variance } = fit;
+  const features = fit.meta?.features ?? Object.keys(row);
+
+  const logp = {};
+  for (const c of classes) {
+    let s = Math.log(Math.max(1e-12, priors[c]));
+    for (const f of features) {
+      const x = Number(row[f] ?? 0);
+      s += logGauss(x, mean[c][f], variance[c][f]);
+    }
+    logp[c] = s;
+  }
+
+  const a = Math.max(logp[0], logp[1]);
+  const p0 = Math.exp(logp[0] - a);
+  const p1 = Math.exp(logp[1] - a);
+  return p1 / Math.max(1e-12, p0 + p1);
+}
+
 // ─── Metrics (inlined from lib/ml_metrics.js) ────────────────────────────────
 
 function binaryMetrics(yTrue, probs, threshold = 0.5) {
@@ -219,23 +323,27 @@ async function buildDataset(allDeviceHistories, lookback_h, lookahead_h) {
 
       const cur  = H[i];
       const gas  = summarizeGas(W);
-      const feat = {
+      const commonFeat = {
         level_in_percents:  Number(cur.level_in_percents ?? 0),
         fill_rate:          slopePcts(W),
         temp:               Number(cur.temp     ?? 25),
         humidity:           Number(cur.humidity ?? 40),
-        h2s:                Number(cur.h2s      ?? 0),
-        nh3:                Number(cur.nh3      ?? 0),
-        smoke:              Number(cur.smoke    ?? 0),
         h2s_max_h:          gas.h2s_max,
-        h2s_mean_h:         gas.h2s_mean,
         nh3_max_h:          gas.nh3_max,
-        nh3_mean_h:         gas.nh3_mean,
         smoke_max_h:        gas.smoke_max,
-        smoke_mean_h:       gas.smoke_mean,
         time_since_empty_h: hoursSinceLastEmpty(W),
       };
-      feat.smell_risk = smellRisk(feat);
+      const feat_lr = {
+        ...commonFeat,
+        smell_risk: smellRisk({
+          h2s:   Number(cur.h2s   ?? 0),
+          nh3:   Number(cur.nh3   ?? 0),
+          smoke: Number(cur.smoke ?? 0),
+          temp: commonFeat.temp,
+          humidity: commonFeat.humidity,
+        }),
+      };
+      const feat_nb = { ...commonFeat };
 
       let label = 0;
       for (const fr of F) {
@@ -246,7 +354,7 @@ async function buildDataset(allDeviceHistories, lookback_h, lookahead_h) {
         }
       }
 
-      samples.push({ device_id, saved_time: H[i].saved_time, feat, label });
+      samples.push({ device_id, saved_time: H[i].saved_time, feat_lr, feat_nb, label });
     }
   }
   return samples;
@@ -314,25 +422,31 @@ async function runConfig(allDeviceHistories, lookback_h, lookahead_h) {
   const samples  = await buildDataset(allDeviceHistories, lookback_h, lookahead_h);
   if (!samples.length) return null;
 
-  const features = Object.keys(samples[0].feat);
   const { train, test } = splitChronological(samples);
   if (!train.length || !test.length) return null;
 
-  const Xtrain = train.map(s => s.feat);
+  const XtrainLR = train.map(s => s.feat_lr);
+  const XtestLR  = test.map(s => s.feat_lr);
+  const XtrainNB = train.map(s => s.feat_nb);
+  const XtestNB  = test.map(s => s.feat_nb);
   const ytrain = train.map(s => s.label);
-  const Xtest  = test.map(s => s.feat);
   const ytest  = test.map(s => s.label);
 
-  const fit   = logisticFit(Xtrain, ytrain, features);
-  const probs = Xtest.map(r => logisticPredict(r, fit));
-  const m     = binaryMetrics(ytest, probs, 0.5);
+  const fitLR   = logisticFit(XtrainLR, ytrain, LR_FEATURES);
+  const probsLR = XtestLR.map(r => logisticPredict(r, fitLR));
+  const lr      = binaryMetrics(ytest, probsLR, 0.5);
+
+  const fitNB   = gnbFit(XtrainNB, ytrain, NB_FEATURES);
+  const probsNB = XtestNB.map(r => gnbPredictProba(r, fitNB));
+  const nb      = binaryMetrics(ytest, probsNB, 0.3);
 
   return {
     n_samples: samples.length,
     n_train:   train.length,
     n_test:    test.length,
-    pos_rate:  (m.positives / m.total * 100).toFixed(1),
-    ...m,
+    pos_rate:  (lr.positives / lr.total * 100).toFixed(1),
+    lr,
+    nb,
   };
 }
 
@@ -342,10 +456,12 @@ function pct(v) { return (v * 100).toFixed(1).padStart(6) + "%"; }
 function num(v) { return String(v).padStart(6); }
 
 function printTable(results) {
-  const divider = "─".repeat(100);
+  const divider = "─".repeat(118);
   console.log("\n" + divider);
   console.log(
     "WINDOW CONFIG".padEnd(14) +
+    "│ Model".padEnd(11) +
+    "│ Feats".padEnd(8) +
     "│ Samples".padEnd(11) +
     "│ Train".padEnd(9) +
     "│ Test".padEnd(8) +
@@ -362,19 +478,31 @@ function printTable(results) {
       console.log(`${config.label.padEnd(14)}│ NOT ENOUGH DATA`);
       continue;
     }
-    const recallStr = pct(m.recall);
-    const isBest    = m.recall === Math.max(...results.filter(r => r.metrics).map(r => r.metrics.recall));
-    console.log(
-      config.label.padEnd(14) + "│" +
-      num(m.n_samples)         + " │" +
-      num(m.n_train)           + " │" +
-      num(m.n_test)            + " │" +
-      (m.pos_rate + "%").padStart(7) + "  │" +
-      pct(m.accuracy)          + "  │" +
-      pct(m.precision)         + "    │" +
-      recallStr + (isBest ? " ← BEST" : "       ") + " │" +
-      pct(m.f1)
+    const rows = [
+      { model: "LR", feats: LR_FEATURES.length, metrics: m.lr },
+      { model: "NB", feats: NB_FEATURES.length, metrics: m.nb },
+    ];
+    const bestRecall = Math.max(
+      ...results.flatMap(r => r.metrics ? [r.metrics.lr.recall, r.metrics.nb.recall] : [])
     );
+    for (const row of rows) {
+      const mm = row.metrics;
+      const recallStr = pct(mm.recall);
+      const isBest = mm.recall === bestRecall;
+      console.log(
+        config.label.padEnd(14) + "│" +
+        row.model.padStart(6).padEnd(10) + "│" +
+        String(row.feats).padStart(5).padEnd(7) + "│" +
+        num(m.n_samples)       + " │" +
+        num(m.n_train)         + " │" +
+        num(m.n_test)          + " │" +
+        (m.pos_rate + "%").padStart(7) + "  │" +
+        pct(mm.accuracy)       + "  │" +
+        pct(mm.precision)      + "    │" +
+        recallStr + (isBest ? " ← BEST" : "       ") + " │" +
+        pct(mm.f1)
+      );
+    }
   }
 
   console.log(divider);
@@ -383,17 +511,20 @@ function printTable(results) {
   console.log("\nCONFUSION MATRICES (TP / FP / FN / TN)\n");
   for (const { config, metrics: m } of results) {
     if (!m) continue;
-    console.log(`  ${config.label}   TP=${m.tp}  FP=${m.fp}  FN=${m.fn}  TN=${m.tn}   (missed urgent bins = FN)`);
+    console.log(`  ${config.label} LR(9)  TP=${m.lr.tp}  FP=${m.lr.fp}  FN=${m.lr.fn}  TN=${m.lr.tn}   (threshold=0.5)`);
+    console.log(`  ${config.label} NB(8)  TP=${m.nb.tp}  FP=${m.nb.fp}  FN=${m.nb.fn}  TN=${m.nb.tn}   (threshold=0.3)`);
   }
 
   // Why 6h is best explanation
-  const best = results.find(r => r.metrics?.recall === Math.max(...results.filter(r => r.metrics).map(r => r.metrics.recall)));
   console.log("\n" + divider);
   console.log("WHY THE RESULTS LOOK THIS WAY");
   console.log(divider);
   console.log(`
   Recall is the primary metric — it measures how many URGENT bins the model catches.
   Missing an urgent bin (false negative) is the worst outcome in this system.
+
+  This script now uses the same production feature sets as the training routes:
+  Logistic Regression uses ${LR_FEATURES.length} features, and Gaussian Naive Bayes uses ${NB_FEATURES.length} features.
 
   As the window grows from 6h → 24h:
 
@@ -414,9 +545,10 @@ function printTable(results) {
      problem than predicting 6h ahead — far more can change in 24 hours.
      The model's learned weights are less reliable at longer horizons.
 
-  OPERATIONAL CONCLUSION: The 6h window produces the highest recall, the most
-  usable training examples, and the sharpest fill-rate features. It also aligns
-  with the realistic planning horizon for campus facilities staff.
+  OPERATIONAL CONCLUSION: Do not choose the window by recall alone. Longer
+  horizons can inflate recall by making nearly every example positive. The useful
+  window is the one that still catches urgent bins while preserving true negatives,
+  usable class balance, and an actionable lead time for campus facilities staff.
 `);
 }
 
@@ -424,11 +556,12 @@ function printTable(results) {
 
 async function main() {
   console.log("═".repeat(60));
-  console.log("  Window Size Comparison — Why 6h Beats 10h, 12h, 24h");
+  console.log("  Window Size Comparison — Production 9-feature LR and 8-feature NB");
   console.log("═".repeat(60));
   console.log(`  Threshold: fill ≥ ${FULL_THRESHOLD}% OR smellRisk ≥ ${SMELL_THRESHOLD}`);
   console.log(`  Split: ${(1 - TEST_RATIO) * 100}% train / ${TEST_RATIO * 100}% test (chronological per device)`);
-  console.log(`  Model: Logistic Regression (lr=0.05, epochs=2000, λ=0.5)\n`);
+  console.log(`  LR: ${LR_FEATURES.length} features, lr=0.05, epochs=2000, λ=0.5, threshold=0.5`);
+  console.log(`  NB: ${NB_FEATURES.length} features, Gaussian NB, threshold=0.3\n`);
 
   const allDeviceHistories = await fetchAllData();
   const results = [];
@@ -438,7 +571,7 @@ async function main() {
     const metrics = await runConfig(allDeviceHistories, config.lookback, config.lookahead);
     if (metrics) {
       process.stdout.write(
-        `recall=${(metrics.recall * 100).toFixed(1)}%  precision=${(metrics.precision * 100).toFixed(1)}%  samples=${metrics.n_samples}\n`
+        `LR recall=${(metrics.lr.recall * 100).toFixed(1)}%  NB recall=${(metrics.nb.recall * 100).toFixed(1)}%  samples=${metrics.n_samples}\n`
       );
     } else {
       process.stdout.write("not enough data\n");

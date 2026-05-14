@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { FaHome, FaTrash, FaRoute, FaDatabase, FaCommentDots, FaTimes, FaPlus, FaSun, FaEdit } from 'react-icons/fa';
+import { FaHome, FaTrash, FaRoute, FaDatabase, FaCommentDots, FaTimes, FaPlus, FaSun, FaEdit, FaChartLine } from 'react-icons/fa';
 import { useAuth } from '@/context/AuthContext';
 
 export default function Sidebar({ isOpen, toggleSidebar }) {
@@ -55,6 +55,12 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
               <li className="flex items-center p-4 border-b border-gray-600 hover:bg-gray-600 transition-colors cursor-pointer group">
                 <FaDatabase className="mr-2" />
                 <span className="group-hover:text-white">Data</span>
+              </li>
+            </Link>
+            <Link href="/model-accuracy" onClick={toggleSidebar}>
+              <li className="flex items-center p-4 border-b border-gray-600 hover:bg-gray-600 transition-colors cursor-pointer group">
+                <FaChartLine className="mr-2" />
+                <span className="group-hover:text-white">Model Accuracy</span>
               </li>
             </Link>
             <div className="w-full h-2 bg-gray-500"></div>

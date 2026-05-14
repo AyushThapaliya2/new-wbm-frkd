@@ -33,7 +33,7 @@ export async function POST(req) {
     body = await req.json();
   } catch {}
 
-  const model_name = body.model_name ?? body.version ?? "pickup_in_12h_v2";
+  const model_name = body.model_name ?? body.version ?? "pickup_in_6h_v2";
   const T_hours = Number(body.T_hours ?? DEF.T_hours);
   const window_hours = Number(body.window_hours ?? DEF.window_hours);
   const full_threshold = Number(body.full_threshold ?? DEF.full_threshold);
@@ -99,20 +99,20 @@ export async function POST(req) {
       feat.fill_rate = slopePcts(W);
       feat.temp = Number(cur.temp ?? 25);
       feat.humidity = Number(cur.humidity ?? 40);
-      feat.h2s = Number(cur.h2s ?? 0);
-      feat.nh3 = Number(cur.nh3 ?? 0);
-      feat.smoke = Number(cur.smoke ?? 0);
-
       const gasStats = summarizeGas(W);
       feat.h2s_max_h = gasStats.h2s_max;
-      feat.h2s_mean_h = gasStats.h2s_mean;
       feat.nh3_max_h = gasStats.nh3_max;
-      feat.nh3_mean_h = gasStats.nh3_mean;
       feat.smoke_max_h = gasStats.smoke_max;
-      feat.smoke_mean_h = gasStats.smoke_mean;
-
       feat.time_since_empty_h = hoursSinceLastEmpty(W);
-      feat.smell_risk = smellRisk(feat);
+      // smell_risk uses current h2s/nh3/smoke readings — captures instant gas hazard
+      // as a weighted composite (H2S highest), complementing the windowed max features.
+      feat.smell_risk = smellRisk({
+        h2s:   Number(cur.h2s   ?? 0),
+        nh3:   Number(cur.nh3   ?? 0),
+        smoke: Number(cur.smoke ?? 0),
+        temp:  feat.temp,
+        humidity: feat.humidity,
+      });
 
       // label: becomes full OR smelly within T hours?
       let y_i = 0;
@@ -153,16 +153,19 @@ export async function POST(req) {
     lambda: 0.5,
   });
 
-  // evaluate recall on a chronological 20% holdout
+  // evaluate on a chronological 20% holdout — save full metrics
   const splitAt  = Math.floor(X.length * 0.8);
   const probs    = X.slice(splitAt).map((row) => logisticPredict(row, fit));
-  const { recall } = binaryMetrics(y.slice(splitAt), probs, 0.5);
+  const metrics  = binaryMetrics(y.slice(splitAt), probs, 0.5);
+  const { recall, precision, f1, accuracy, confusion_matrix, total, positives } = metrics;
 
   // 4) persist
-  const save = await sb.from("priority_weights").upsert({
+  const save = await sb.from("priority_weights").insert({
     model: model_name,
     weights: fit.weights,
     bias: fit.bias,
+    trained_at: new Date().toISOString(),
+    train_accuracy: recall,
     meta: {
       features,
       mean: fit.meta?.mean,
@@ -174,7 +177,15 @@ export async function POST(req) {
       smell_threshold,
       trained_on: new Date().toISOString(),
       y_rate: y.reduce((a, b) => a + b, 0) / y.length,
+      n_train: splitAt,
+      n_test: total,
+      n_test_positive: positives,
+      n_test_negative: total - positives,
       recall,
+      precision,
+      f1,
+      accuracy,
+      confusion_matrix,
     },
   });
 

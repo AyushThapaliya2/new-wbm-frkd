@@ -302,10 +302,6 @@ export async function POST(req) {
 
     // snapshot (reuse the same nowISO defined above)
     if (rows.length) {
-      const train_accuracy = Number.isFinite(Number(fit.meta?.recall))
-        ? Number(fit.meta.recall)
-        : null;
-
       const inserts = rows.map((r) => ({
         unique_id: r.unique_id,
         predicted_priority: r.ops_priority, // store ops-aware score
@@ -316,7 +312,6 @@ export async function POST(req) {
         level_pct: r.level_pct,
         fill_rate: r.fill_rate,
         smell_risk: r.smell_risk,
-        train_accuracy,
       }));
       const ins = await sb.from("bin_priority_predictions").insert(inserts);
       if (ins.error)
