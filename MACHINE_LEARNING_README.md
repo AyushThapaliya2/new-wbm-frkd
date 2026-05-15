@@ -45,6 +45,8 @@ lib/features.js                       -> feature engineering code
 window_comparison.mjs                 -> compares 6h, 10h, 12h, and 24h windows
 ```
 
+You can move these files and create an ML folder if that makes the structure easier to organize.
+
 # Dependencies
 
 _[Node](https://nodejs.org/en/download) has to be installed on the machine!!!_
@@ -89,8 +91,6 @@ SUPABASE_SERVICE_ROLE_KEY={Supabase service role key if needed}
 
 TTN_WEBHOOK_SECRET={optional secret for TTN webhook validation}
 ```
-
-_Do not upload real keys or passwords to GitHub._
 
 # Running The Dashboard
 
@@ -149,6 +149,155 @@ For Naive Bayes, it stores priors, means, and variances.
 Stores prediction snapshots.
 Includes final predicted priority, ML probability, fill level, fill rate, smell risk, and model used.
 ```
+
+# Creating The Database Tables
+
+Open the Supabase SQL
+Editor and run this query. This uses only the columns shown in the current
+Supabase schema.
+
+<pre>
+
+```sql
+CREATE TABLE IF NOT EXISTS bin_priority_predictions (
+  id SERIAL NOT NULL PRIMARY KEY,
+  unique_id INTEGER NOT NULL,
+  predicted_priority DOUBLE PRECISION NOT NULL,
+  predicted_full_at TIMESTAMPTZ NULL,
+  model_used VARCHAR NOT NULL,
+  generated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  prob_pickup_in_thours DOUBLE PRECISION NULL,
+  level_pct SMALLINT NULL,
+  fill_rate DOUBLE PRECISION NULL,
+  smell_risk DOUBLE PRECISION NULL
+);
+
+CREATE TABLE IF NOT EXISTS devices (
+  id SERIAL NOT NULL,
+  unique_id INTEGER NOT NULL PRIMARY KEY,
+  is_registered BOOLEAN NOT NULL,
+  lat VARCHAR(100) NULL,
+  lng VARCHAR(100) NULL,
+  battery SMALLINT NULL,
+  level DOUBLE PRECISION NULL,
+  reception SMALLINT NULL,
+  bin_height SMALLINT NULL,
+  timestamp TIMESTAMPTZ NULL DEFAULT CURRENT_TIMESTAMP,
+  temp DOUBLE PRECISION NULL,
+  humidity DOUBLE PRECISION NULL,
+  h2s DOUBLE PRECISION NULL,
+  smoke DOUBLE PRECISION NULL,
+  nh3 DOUBLE PRECISION NULL,
+  bin_label TEXT NULL,
+  bin_color TEXT NULL,
+  waste_stream TEXT NULL
+);
+
+CREATE TABLE IF NOT EXISTS feedbacks (
+  id SERIAL NOT NULL PRIMARY KEY,
+  device_id VARCHAR NULL,
+  reported_by_id SMALLINT NULL,
+  reported_by_name VARCHAR NULL,
+  title TEXT NULL,
+  description TEXT NULL,
+  assigned_to SMALLINT NULL,
+  addressed BOOLEAN NOT NULL DEFAULT false,
+  addressed_date TIMESTAMPTZ NULL,
+  timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
+  devicetype VARCHAR NULL
+);
+
+CREATE TABLE IF NOT EXISTS historical (
+  id SERIAL NOT NULL PRIMARY KEY,
+  unique_id INTEGER NOT NULL,
+  level_in_percents DOUBLE PRECISION NULL,
+  saved_time TIMESTAMPTZ NULL DEFAULT CURRENT_TIMESTAMP,
+  temp DOUBLE PRECISION NULL,
+  humidity DOUBLE PRECISION NULL,
+  h2s DOUBLE PRECISION NULL,
+  smoke DOUBLE PRECISION NULL,
+  nh3 DOUBLE PRECISION NULL
+);
+
+CREATE TABLE IF NOT EXISTS priority_weights (
+  model VARCHAR NOT NULL,
+  weights JSONB NOT NULL,
+  bias DOUBLE PRECISION NOT NULL,
+  meta JSONB NOT NULL,
+  trained_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  train_accuracy DOUBLE PRECISION NULL,
+  id BIGSERIAL NOT NULL PRIMARY KEY
+);
+
+CREATE TABLE IF NOT EXISTS routes (
+  id SERIAL NOT NULL PRIMARY KEY,
+  employeeid INTEGER NULL,
+  deviceids INTEGER[] NOT NULL,
+  emptybin BOOLEAN NOT NULL,
+  changebattery BOOLEAN NOT NULL,
+  status VARCHAR NOT NULL,
+  started TIMESTAMP NULL,
+  finished TIMESTAMP NULL,
+  timestamp TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL NOT NULL,
+  fname VARCHAR NULL,
+  lname VARCHAR NULL,
+  email VARCHAR NOT NULL PRIMARY KEY,
+  password VARCHAR NULL,
+  role VARCHAR NULL,
+  start_date DATE NULL
+);
+
+CREATE TABLE IF NOT EXISTS weather_sensors (
+  id SERIAL NOT NULL,
+  unique_id INTEGER NOT NULL PRIMARY KEY,
+  is_registered BOOLEAN NOT NULL DEFAULT false,
+  lat VARCHAR NULL,
+  lng VARCHAR NULL,
+  battery SMALLINT NULL,
+  reception SMALLINT NULL,
+  temp DOUBLE PRECISION NULL,
+  humidity DOUBLE PRECISION NULL,
+  timestamp TIMESTAMPTZ NULL DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+</pre>
+
+After creating the tables, add at least one row in `devices` for each physical
+bin. The important columns are:
+
+```
+unique_id       -> device ID from TTN / hardware
+is_registered   -> must be true
+bin_height      -> bin height in cm
+level           -> current ultrasonic distance reading in cm
+temp            -> current temperature
+humidity        -> current humidity
+h2s             -> current H2S reading
+nh3             -> current NH3 reading
+smoke           -> current smoke reading
+```
+
+The `historical` table must contain past rows for the same `unique_id`. Training
+will not work with only current rows in `devices`; it needs enough timestamped
+history in `historical` to build 6-hour lookback and 6-hour lookahead examples.
+
+The full dashboard also uses these application tables:
+
+```
+users
+feedbacks
+routes
+weather_sensors
+```
+
+Those tables are for login, feedback, collection routes, and weather sensor
+features. The machine learning training and prediction routes mainly depend on
+`devices`, `historical`, `priority_weights`, and `bin_priority_predictions`.
 
 # How Training Works
 
